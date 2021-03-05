@@ -8,6 +8,7 @@ static image ** _bitmaps;
 static uint8_t * _palette;
 static uint32_t _depth;
 
+GtkWidget * drawing_area;
 static cairo_surface_t * surface;
 static cairo_pattern_t * pattern;
 
@@ -28,7 +29,6 @@ void draw_on_surface(cairo_surface_t * surface) {
       pixel[2] = pal[2];
     }
   }
-
   cairo_surface_mark_dirty(surface);
 }
 
@@ -41,7 +41,6 @@ void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) 
         CAIRO_CONTENT_COLOR,
         gtk_widget_get_allocated_width (widget),
         gtk_widget_get_allocated_height (widget));
-  draw_on_surface(surface);
 
   // The derived 'pattern' object may also be set up once
   pattern = cairo_pattern_create_for_surface(surface);
@@ -49,7 +48,10 @@ void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) 
 }
 
 void draw_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
-	printf("drawing\n");
+  if (!(cairo_in_clip(cr, 0,0) || cairo_in_clip(cr, 31, 7))) return; // not (presently) drawing anything outside this area
+
+  draw_on_surface(surface);
+
   cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
   cairo_scale(cr, 5, 5);
   cairo_set_source(cr, pattern);
@@ -68,10 +70,6 @@ void display_runloop(int argc, char ** argv, image ** bitmaps, uint8_t * palette
   _palette = palette;
   _depth = depth;
 
-  g_thread_init (NULL);
-  gdk_threads_init ();
-  gdk_threads_enter ();
-
   gtk_init (&argc, &argv);
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
@@ -81,7 +79,7 @@ void display_runloop(int argc, char ** argv, image ** bitmaps, uint8_t * palette
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
 
-  GtkWidget * drawing_area = gtk_drawing_area_new();
+  drawing_area = gtk_drawing_area_new();
   gtk_widget_set_size_request(drawing_area, 32,8);
   gtk_container_add(GTK_CONTAINER(window), drawing_area);
   g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_cb), NULL);
@@ -89,6 +87,8 @@ void display_runloop(int argc, char ** argv, image ** bitmaps, uint8_t * palette
 
   gtk_widget_show_all(GTK_WIDGET(window));
   gtk_main();
+}
 
-  gdk_threads_leave();
+void display_redraw() {
+  g_idle_add((GSourceFunc)gtk_widget_queue_draw,(void*)drawing_area);
 }

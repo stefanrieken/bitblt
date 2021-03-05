@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #include "bitmap.h"
 #include "planar.h"
@@ -73,16 +75,13 @@ image * make_img(uint8_t * rawdata) {
   return image;
 }
 
-int main (int argc, char ** argv) {
+void * worker_func(void * args) {
+  image ** backgrounds = (image **) args;
+
+  sleep(1);
+
   coords at = { 0, 0};
   coords at1 = { 1, 0};
-
-  image ** backgrounds = malloc(sizeof(image*) *4);
-  backgrounds[0] = make_img(circle);
-  backgrounds[1] = make_img(circle);
-  backgrounds[2] = make_img(circle);
-  backgrounds[3] = make_img(circle);
-  
 
   image ** sprites = malloc(sizeof(image*) *4);
   sprites[0] = make_img(curve);
@@ -92,6 +91,8 @@ int main (int argc, char ** argv) {
   write_bitmap("circle.bmp", backgrounds[0], 1);
   write_bitmap("curve.bmp", sprites[0], 1);
   planar_bitblt(backgrounds, sprites, at, 4);
+  display_redraw();
+
   write_bitmap("curve_before_circle.bmp", pack(backgrounds,4), 4);
   image ** mixed = malloc(sizeof(image*) *4);
   mixed[0] = make_img(circle);
@@ -100,7 +101,19 @@ int main (int argc, char ** argv) {
   mixed[3] = make_img(curve);
   write_bitmap("mixed.bmp", pack(mixed,4), 4);
 
-  display_runloop(argc, argv, backgrounds, palette, 4);
-
   return 0;
+}
+
+int main (int argc, char ** argv) {
+
+  image ** display = malloc(sizeof(image*) *4);
+  display[0] = make_img(circle);
+  display[1] = make_img(circle);
+  display[2] = make_img(circle);
+  display[3] = make_img(circle);
+
+  pthread_t worker;
+  pthread_create(&worker, NULL, worker_func, display);
+
+  display_runloop(argc, argv, display, palette, 4);
 }
