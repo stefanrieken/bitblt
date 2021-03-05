@@ -5,6 +5,7 @@
 
 #include "bitmap.h"
 #include "planar.h"
+#include "display/display.h"
 
 uint8_t circle[] = {
   0b00111100,
@@ -29,6 +30,31 @@ uint8_t curve[] = {
 };
 
 uint8_t none[] = {0,0,0,0,0,0,0,0};
+
+// same as in write bitmap, not very sanitized
+uint8_t palette[] = {
+	0x00, 0x00, 0x00,
+	0xFF, 0xFF, 0xFF,
+
+	0x00, 0xFF, 0x00,
+	0x00, 0x00, 0xFF,
+	0xFF, 0x00, 0x00,
+
+	0x00, 0x88, 0x00,
+	0x00, 0x00, 0x88,
+	0x88, 0x00, 0x00,
+
+	0x88, 0x88, 0x88,
+
+	0x88, 0x88, 0x00,
+	0x00, 0x88, 0x88,
+	0x88, 0x00, 0x88,
+
+	0x88, 0x88, 0x88,
+	0x88, 0x88, 0x00,
+	0x00, 0x88, 0x88,
+	0x88, 0x00, 0x88,
+};
 
 /**
  * Make a simple 1-bit image.
@@ -56,6 +82,8 @@ int main (int argc, char ** argv) {
   backgrounds[1] = make_img(circle);
   backgrounds[2] = make_img(circle);
   backgrounds[3] = make_img(circle);
+  
+
   image ** sprites = malloc(sizeof(image*) *4);
   sprites[0] = make_img(curve);
   sprites[1] = make_img(none);
@@ -71,5 +99,8 @@ int main (int argc, char ** argv) {
   mixed[2] = make_img(circle);
   mixed[3] = make_img(curve);
   write_bitmap("mixed.bmp", pack(mixed,4), 4);
+
+  display_runloop(argc, argv, backgrounds, palette, 4);
+
   return 0;
 }

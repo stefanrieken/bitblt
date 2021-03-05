@@ -56,14 +56,18 @@ void write_bitmap(const char * filename, image * img, uint8_t bpp) {
     fputc(0xFF, file); fputc(0x00, file); fputc(0x00, file);
   }
   if (bpp >= 4) {
-    fputc(0x00, file); fputc(0x00, file); fputc(0x00, file);
-    fputc(0x88, file); fputc(0x88, file); fputc(0x88, file);
+    fputc(0xFF, file); fputc(0x00, file); fputc(0x00, file);
+
     fputc(0x00, file); fputc(0x88, file); fputc(0x00, file);
     fputc(0x88, file); fputc(0x00, file); fputc(0x00, file);
     fputc(0x00, file); fputc(0x00, file); fputc(0x88, file);
+
+    fputc(0x88, file); fputc(0x88, file); fputc(0x88, file);
+
     fputc(0x00, file); fputc(0x88, file); fputc(0x88, file);
     fputc(0x88, file); fputc(0x88, file); fputc(0x00, file);
     fputc(0x88, file); fputc(0x00, file); fputc(0x88, file);
+
     fputc(0x00, file); fputc(0x00, file); fputc(0x88, file);
     fputc(0x00, file); fputc(0x88, file); fputc(0x88, file);
     fputc(0x88, file); fputc(0x88, file); fputc(0x00, file);

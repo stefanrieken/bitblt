@@ -31,6 +31,18 @@ Map to packed-pixel / color index ('on the serial fly'):
 
 #include "planar.h"
 
+uint8_t gather_pixel(image ** images, uint32_t planar_pixel_index, uint32_t depth) {
+  uint8_t pixel = 0;
+  uint32_t planar_word = planar_pixel_index / 32; // 32 pixels per word
+  uint32_t planar_bit  = planar_pixel_index % 32; // 0 .. 31
+
+  for(int n=0; n<depth; n++) {
+    uint8_t bit = ((images[n]->data[planar_word]) >> (31-planar_bit)) & 0b1;
+    pixel |= bit << n;
+  }
+  return pixel;
+}
+
 /**
  * Convert a set of planar images into a packed-pixel image.
  */
@@ -42,15 +54,8 @@ image * pack(image ** images, uint32_t num) {
   for (int i=0; i< result->size.y; i++) {
     for (int j=0; j<result->size.x; j++) {
 
-      uint8_t pixel = 0;
-      uint32_t planar_pixel_index = (i*result->size.x) + j;
-      uint32_t planar_word = planar_pixel_index / 32; // 32 pixels per word
-      uint32_t planar_bit  = planar_pixel_index % 32; // 0 .. 31
-
-      for(int n=0; n<num; n++) {
-        uint8_t bit = ((images[n]->data[planar_word]) >> (31-planar_bit)) & 0b1;
-        pixel |= bit << n;
-      }
+      uint32_t planar_pixel_index = (i*images[0]->size.x) + j;
+      uint8_t pixel = gather_pixel(images, planar_pixel_index, num);
 
       // We have a pixel, now drop it at the right place
       uint32_t packed_pixel_index = planar_pixel_index * num; // num == bpp
