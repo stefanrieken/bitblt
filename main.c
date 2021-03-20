@@ -76,6 +76,14 @@ image * make_img(uint8_t * rawdata) {
   return image;
 }
 
+image * make_canvas(int width, int height) {
+  image * image = malloc(sizeof(image));
+  image->size.x = width;
+  image->size.y = height;
+  image->data = calloc(1, sizeof(uint32_t) * (width / 32) * height);
+  return image;
+}
+
 void * worker_func(void * args) {
   image ** backgrounds = (image **) args;
 
@@ -107,21 +115,53 @@ void * worker_func(void * args) {
 
 int main (int argc, char ** argv) {
 
+  int width = 320;
+  int height = 200;
+
+  coords at = { 0, 0};
+
   image ** display = malloc(sizeof(image*) *4);
-  display[0] = make_img(circle);
-  display[1] = make_img(circle);
-  display[2] = make_img(circle);
-  display[3] = make_img(circle);
+  display[0] = make_canvas(width, height);
+  display[1] = make_canvas(width, height);
+  display[2] = make_canvas(width, height);
+  display[3] = make_canvas(width, height);
+
+  image * c = make_img(circle);
+  planar_bitblt(&display[1], &c, at, 1);
 
   image ** ch = malloc(sizeof(image*) * 4);
   bool fixed = false;
-  char * txt = "Blit!";
-  ch[0] = render(txt, fixed);
-  ch[1] = render(txt, fixed);
-  ch[2] = render(txt, fixed);
-  ch[3] = render(txt, fixed);
-  coords at = { 0, 0};
-  planar_bitblt(display, ch, at, 4);
+  char * txt = "The quick brown fox jumps over the lazy dog.";
+  int stretch = 1;
+  ch[0] = render(txt, stretch, fixed);
+  ch[1] = render(txt, stretch, fixed);
+  ch[2] = render(txt, stretch, fixed);
+  ch[3] = render(txt, stretch, fixed);
+  coords at2 = { 0, 10};
+  planar_bitblt(display, ch, at2, 4);
+  fixed=true;
+  ch[0] = render(txt, stretch, fixed);
+  ch[1] = render(txt, stretch, fixed);
+  ch[2] = render(txt, stretch, fixed);
+  ch[3] = render(txt, stretch, fixed);
+  coords at3 = { 0, 30};
+  planar_bitblt(display, ch, at3, 4);
+  txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
+  fixed = false;
+  ch[0] = render(txt, stretch, fixed);
+  ch[1] = render(txt, stretch, fixed);
+  ch[2] = render(txt, stretch, fixed);
+  ch[3] = render(txt, stretch, fixed);
+  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
+  coords at4 = { 0, 50};
+  planar_bitblt(display, ch, at4, 4);
+  fixed=true;
+  ch[0] = render(txt, stretch, fixed);
+  ch[1] = render(txt, stretch, fixed);
+  ch[2] = render(txt, stretch, fixed);
+  ch[3] = render(txt, stretch, fixed);
+  coords at5 = { 0, 70};
+  planar_bitblt(display, ch, at5, 4);
 
   pthread_t worker;
   pthread_create(&worker, NULL, worker_func, display);

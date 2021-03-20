@@ -4,6 +4,8 @@
 
 #include "../planar.h"
 
+#define SCALE 2
+
 static image ** _bitmaps;
 static uint8_t * _palette;
 static uint32_t _depth;
@@ -53,7 +55,7 @@ void draw_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
   draw_on_surface(surface);
 
   cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
-  cairo_scale(cr, 5, 5);
+  cairo_scale(cr, SCALE, SCALE);
   cairo_set_source(cr, pattern);
   cairo_paint(cr);
 }
@@ -74,7 +76,7 @@ void display_runloop(int argc, char ** argv, image ** bitmaps, uint8_t * palette
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
   gtk_window_set_title(window, "pixbuf");
-  gtk_window_set_default_size(window, 400, 300);
+  gtk_window_set_default_size(window, 400*SCALE, 300*SCALE);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
