@@ -8,6 +8,7 @@
 #include "bitmap.h"
 #include "planar.h"
 #include "display/display.h"
+#include "font.h"
 
 uint8_t circle[] = {
   0b00111100,
@@ -111,6 +112,16 @@ int main (int argc, char ** argv) {
   display[1] = make_img(circle);
   display[2] = make_img(circle);
   display[3] = make_img(circle);
+
+  image ** ch = malloc(sizeof(image*) * 4);
+  bool fixed = false;
+  char * txt = "Blit!";
+  ch[0] = render(txt, fixed);
+  ch[1] = render(txt, fixed);
+  ch[2] = render(txt, fixed);
+  ch[3] = render(txt, fixed);
+  coords at = { 0, 0};
+  planar_bitblt(display, ch, at, 4);
 
   pthread_t worker;
   pthread_create(&worker, NULL, worker_func, display);
