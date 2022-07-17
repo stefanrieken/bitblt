@@ -23,7 +23,7 @@ void draw_on_surface(cairo_surface_t * surface) {
     for(int j=0; j<_screen_data->width;j++) {
       // gather indexed pixel data; find palette color
       uint32_t idx = (i * _screen_data->width)+j;
-      uint8_t * pal = &_palette[gather_pixel(_screen_data, idx)];
+      uint8_t * pal = &_palette[3*gather_pixel(_screen_data, idx)];
       // and copy to pixbuf
       uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];
       pixel[0] = pal[0];

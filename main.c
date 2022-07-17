@@ -20,19 +20,59 @@ uint16_t cat[] = {
   0b0111100110011110,
   0b0111100110011110,
   0b0111111111111110,
-  0b1111111001111111,
+  0b1111111111111111,
   0b0111111111111110,
-  0b1111001001001111,
-  0b0111100000011110,
-  0b0011110000111100,
+  0b1111111111111111,
+  0b0111111111111110,
+  0b0011111111111100,
   0b0001111111111000,
   0b0000111111110000  
 };
 
-// same as in write bitmap, not very sanitized
+uint16_t cat_color2[] = {
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0010000000000100,
+  0b0011000000001100,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000011001100000,
+  0b0000011001100000,
+  0b0000000000000000,
+  0b0000000110000000,
+  0b0000000000000000,
+  0b0000110110110000,
+  0b0000011111100000,
+  0b0000001111000000,
+  0b0000000000000000,
+  0b0000000000000000
+};
+
+uint16_t cat_eyes[] = {
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000111001110000,
+  0b0000111001110000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000110110110000,
+  0b0000011111100000,
+  0b0000000000000000,
+  0b0000000000000000,
+  0b0000000000000000
+};
+
+
+// Same as in write bitmap, not very sanitized.
+// Reverse from what's expected due to endianness.
 uint8_t palette[] = {
-	0x00, 0x00, 0x00,
-	0xFF, 0xFF, 0xFF,
+	0x00, 0x00, 0x00, // black (and / or transparent!)
+	0xFF, 0xFF, 0xFF, // white
 
 	0x00, 0xFF, 0x00,
 	0x00, 0x00, 0xFF,
@@ -42,16 +82,40 @@ uint8_t palette[] = {
 	0x00, 0x00, 0x88,
 	0x88, 0x00, 0x00,
 
-	0x88, 0x88, 0x88,
+	0x88, 0x88, 0x88, // grey
 
 	0x88, 0x88, 0x00,
 	0x00, 0x88, 0x88,
-	0x88, 0x00, 0x88,
+	0x88, 0x00, 0x88, 
 
-	0x88, 0x88, 0x88,
+	0x88, 0x88, 0x88, // repeated
 	0x88, 0x88, 0x00,
 	0x00, 0x88, 0x88,
-	0x88, 0x00, 0x88,
+	0x88, 0x00, 0x88
+};
+
+// Catty paletty!
+uint8_t palette2[] = {
+	0x00, 0x00, 0x00, // black (and / or transparent!)
+	0xFF, 0xFF, 0xFF, // white
+
+	0x00, 0xFF, 0x00,
+	0x20, 0xAA, 0xCA, // hair
+	0x89, 0x75, 0xFF, // ears
+
+	0x00, 0x88, 0x00, // text
+	0x00, 0x00, 0x88,
+	0x61, 0x24, 0xFF, // mouth
+	0x88, 0x88, 0x88, // grey
+
+	0x88, 0x88, 0x00,
+	0x00, 0x88, 0x88,
+	0xCC, 0xCC, 0xCC, // eye white 
+
+	0x22, 0x22, 0x22, // eyes
+	0x88, 0x88, 0x00,
+	0x00, 0x88, 0x88,
+	0x20, 0x10, 0x59 // mouth
 };
 
 /**
@@ -77,32 +141,36 @@ void write_demo_text() {
   int stretch = 1;
   planar_image * ch = render_text(txt, stretch, fixed);
   
-  // Copy text into all four planes
-  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 10, i, true);
+  // Copy text into those planes required to get readable green color
+  planar_bitblt(background, ch, 0, 10, 0, true);
+  planar_bitblt(background, ch, 0, 10, 2, true);
 
   fixed=true;
   free(ch);
   ch = render_text(txt, stretch, fixed);
-  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 30, i, true);
+  planar_bitblt(background, ch, 0, 30, 0, true);
+  planar_bitblt(background, ch, 0, 30, 2, true);
 
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
   fixed = false;
   
   free(ch);
   ch = render_text(txt, stretch, fixed);
-  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 50, i, true);
+  planar_bitblt(background, ch, 0, 50, 0, true);
+  planar_bitblt(background, ch, 0, 50, 2, true);
 
   txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
 
   free(ch);
   ch = render_text(txt, stretch, fixed);
-
-  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 70, i, true);
+  planar_bitblt(background, ch, 0, 70, 0, true);
+  planar_bitblt(background, ch, 0, 70, 2, true);
 
   fixed=true;
   free(ch);
   ch = render_text(txt, stretch, fixed);
-  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 90, i, true);
+  planar_bitblt(background, ch, 0, 90, 0, true);
+  planar_bitblt(background, ch, 0, 90, 2, true);
   free(ch);
 
   // log evidence to file
@@ -113,10 +181,15 @@ void * demo(void * args) {
   // planar_image * display = (planar_image *) args; // why bother
 
   planar_image * img_cat = make_img(cat);
+  planar_image * img_cat2 = make_img(cat_color2);
+  planar_image * img_cat3 = make_img(cat_eyes);
+
   planar_image * color_cat = new_planar_image(32, 16, 4);
-  // copy cat image into only a few planes to make it have a different color than the text
+
   planar_bitblt(color_cat, img_cat, 0, 0, 0, false);
-  planar_bitblt(color_cat, img_cat, 0, 0, 2, false);
+  planar_bitblt(color_cat, img_cat, 0, 0, 1, false);
+  planar_bitblt(color_cat, img_cat2, 0, 0, 2, false);
+  planar_bitblt(color_cat, img_cat3, 0, 0, 3, false);
 
   int i = 0; int j = 0;
   int increment_i = 1; int increment_j = 1;
@@ -132,7 +205,7 @@ void * demo(void * args) {
       j += increment_j;
       
       // We can draw safely outside the screen!
-      // But for the visual we will only dip outside briefly. 
+      // But for the visual effect we will only dip outside briefly. 
       // Take into account that our sprite is actually 32 wide.
       if (i <= -32 || i >= display->width-16) increment_i = -increment_i;
       if (j <= -16 || j >= display->height) increment_j = -increment_j;
@@ -152,7 +225,7 @@ int main (int argc, char ** argv) {
   background = new_planar_image(320, 200, 4);
   write_demo_text();
 
-  display_init(argc, argv, display, palette, 4);
+  display_init(argc, argv, display, palette2, 4);
 
   pthread_t worker;
   pthread_create(&worker, NULL, demo, display);
