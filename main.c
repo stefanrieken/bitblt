@@ -68,34 +68,8 @@ uint16_t cat_eyes[] = {
 };
 
 
-// Same as in write bitmap, not very sanitized.
-// Reverse from what's expected due to endianness.
+// Catty paletty! (and some garbage)
 uint8_t palette[] = {
-	0x00, 0x00, 0x00, // black (and / or transparent!)
-	0xFF, 0xFF, 0xFF, // white
-
-	0x00, 0xFF, 0x00,
-	0x00, 0x00, 0xFF,
-	0xFF, 0x00, 0x00,
-
-	0x00, 0x88, 0x00,
-	0x00, 0x00, 0x88,
-	0x88, 0x00, 0x00,
-
-	0x88, 0x88, 0x88, // grey
-
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0x88, 0x00, 0x88, 
-
-	0x88, 0x88, 0x88, // repeated
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0x88, 0x00, 0x88
-};
-
-// Catty paletty!
-uint8_t palette2[] = {
 	0x00, 0x00, 0x00, // black (and / or transparent!)
 	0xFF, 0xFF, 0xFF, // white
 
@@ -174,7 +148,7 @@ void write_demo_text() {
   free(ch);
 
   // log evidence to file
-  write_bitmap("demo_text.bmp", palette2, pack(background), background->width, background->height, background->depth);
+  write_bitmap("demo_text.bmp", palette, pack(background), background->width, background->height, background->depth);
 }
 
 void * demo(void * args) {
@@ -214,7 +188,7 @@ void * demo(void * args) {
       usleep(20000);
   }
 
-  write_bitmap("demo_text_with_kitty.bmp", palette2, pack(display), background->width, background->height, background->depth);
+  write_bitmap("demo_text_with_kitty.bmp", palette, pack(display), background->width, background->height, background->depth);
 
   return 0;
 }
@@ -225,7 +199,7 @@ int main (int argc, char ** argv) {
   background = new_planar_image(320, 200, 4);
   write_demo_text();
 
-  display_init(argc, argv, display, palette2, 4);
+  display_init(argc, argv, display, palette, 4);
 
   pthread_t worker;
   pthread_create(&worker, NULL, demo, display);
