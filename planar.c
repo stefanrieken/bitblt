@@ -82,7 +82,7 @@ uint32_t * pack(planar_image * image) {
   return result;
 }
 
-void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane) {
+void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane, bool zero_transparent) {
   uint32_t offset = at_x % 32;
 
 
@@ -93,9 +93,12 @@ void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, i
 
       uint32_t mask = 0;
       
-      // 
-      for(int n=0; n<sprite->depth; n++) {
-        mask |= sprite->planes[n][sprite_word_idx];
+      if (zero_transparent) {
+        for(int n=0; n<sprite->depth; n++) {
+          mask |= sprite->planes[n][sprite_word_idx];
+        }
+      } else {
+        mask = 0xFFFFFFFF;
       }
 
       // Calculate background position

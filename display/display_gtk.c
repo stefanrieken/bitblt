@@ -67,7 +67,7 @@ void delete_cb(GtkWidget *widget, GdkEventType *event, gpointer userdata) {
   gtk_main_quit();
 }
 
-void display_runloop(int argc, char ** argv, pthread_t worker_thread, planar_image * screen_data, uint8_t * palette, uint32_t depth) {
+void display_init(int argc, char ** argv, planar_image * screen_data, uint8_t * palette, uint32_t depth) {
   _screen_data = screen_data;
   _palette = palette;
   _depth = depth;
@@ -88,11 +88,14 @@ void display_runloop(int argc, char ** argv, pthread_t worker_thread, planar_ima
   g_signal_connect(drawing_area,"configure-event", G_CALLBACK (configure_cb), NULL);
 
   gtk_widget_show_all(GTK_WIDGET(window));
-  gtk_main();
+}
 
+void display_runloop(pthread_t worker_thread) {
+  gtk_main();
   pthread_join(worker_thread, NULL);
 }
 
 void display_redraw() {
-  g_idle_add((GSourceFunc)gtk_widget_queue_draw,(void*)drawing_area);
+  if (drawing_area != NULL)
+    g_idle_add((GSourceFunc)gtk_widget_queue_draw,(void*)drawing_area);
 }

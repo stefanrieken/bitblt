@@ -10,29 +10,24 @@
 #include "display/display.h"
 #include "font.h"
 
-uint8_t circle[] = {
-  0b00111100,
-  0b01100110,
-  0b11000011,
-  0b10000001,
-  0b10000001,
-  0b11000011,
-  0b01100110,
-  0b00111100
+uint16_t cat[] = {
+  0b0110000000000110,
+  0b0111000000001110,
+  0b0101100000011010,
+  0b0100100000010010,
+  0b0111111111111110,
+  0b0111111111111110,
+  0b0111100110011110,
+  0b0111100110011110,
+  0b1111111111111111,
+  0b0111111001111110,
+  0b1111111111111111,
+  0b0111001001001110,
+  0b0111100000011110,
+  0b0011110000111100,
+  0b0001111111111000,
+  0b0000111111110000  
 };
-
-uint8_t curve[] = {
-  0b01100000,
-  0b01100000,
-  0b01100000,
-  0b01100000,
-  0b00110000,
-  0b00111111,
-  0b00001111,
-  0b00000000
-};
-
-uint8_t none[] = {0,0,0,0,0,0,0,0};
 
 // same as in write bitmap, not very sanitized
 uint8_t palette[] = {
@@ -64,104 +59,102 @@ uint8_t palette[] = {
  * Align into the first byte of the word.
  * Since we're little-endian, that's actually the bottom byte.
  */
-planar_image * make_img(uint8_t * rawdata) {
-  planar_image * image = new_planar_image(32, 8, 1);
-  for(int i = 0; i < 8; i++) {
+planar_image * make_img(uint16_t * rawdata) {
+  planar_image * image = new_planar_image(32, 16, 1);
+  for(int i = 0; i < 16; i++) {
     image->planes[0][i] = rawdata[i];
   }
   return image;
 }
 
-void * worker_func(void * args) {
-  planar_image * background = (planar_image *) args;
 
-  planar_image * img_curve = make_img(curve);
-  planar_image * img_circle = make_img(circle);
+planar_image * display;
+planar_image * background;
 
-  sleep(1);
-
-  planar_image * sprite = new_planar_image(32, 8, 4);
-  planar_bitblt(sprite, img_curve, 0, 0, 0);
-
-  write_bitmap("circle.bmp", background->planes[0], background->width, background->height, 1);
-
-  //write_bitmap("curve.bmp", sprite->planes[0], sprite->width, sprite->height, sprite->depth);
-  write_bitmap("curve.bmp", img_curve->planes[0], img_curve->width, img_curve->height, 1);
-  planar_bitblt(background, sprite, 0, 0, 0);
-  display_redraw();
-
-  write_bitmap("curve_before_circle.bmp", pack(background), background->width, background->height, background->depth);
-
-  planar_image * mixed = new_planar_image(32, 8, 4);
-  planar_bitblt(mixed, img_circle, 0, 0, 0);
-  planar_bitblt(mixed, img_curve, 0, 0, 1);
-  planar_bitblt(mixed, img_circle, 0, 0, 2);
-  planar_bitblt(mixed, img_circle, 0, 0, 3);
-
-  write_bitmap("mixed.bmp", pack(mixed), mixed->width, mixed->height, mixed->depth);
-
-  return 0;
-}
-
-int main (int argc, char ** argv) {
-  planar_image * display = new_planar_image(320, 200, 4);
-
-  planar_image * c = make_img(circle);
-  planar_bitblt(display, c, 0, 0, 1);
-
+void write_demo_text() {
   bool fixed = false;
   char * txt = "The quick brown fox jumps over the lazy dog.";
-  int stretch = 2;
+  int stretch = 1;
   planar_image * ch = render_text(txt, stretch, fixed);
   
   // Copy text into all four planes
-  planar_bitblt(display, ch, 0, 10, 0);
-  planar_bitblt(display, ch, 0, 10, 1);
-  planar_bitblt(display, ch, 0, 10, 2);
-  planar_bitblt(display, ch, 0, 10, 3);
+  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 10, i, true);
 
   fixed=true;
   free(ch);
   ch = render_text(txt, stretch, fixed);
-
-  planar_bitblt(display, ch, 0, 30, 0);
-  planar_bitblt(display, ch, 0, 30, 1);
-  planar_bitblt(display, ch, 0, 30, 2);
-  planar_bitblt(display, ch, 0, 30, 3);
+  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 30, i, true);
 
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
   fixed = false;
   
   free(ch);
   ch = render_text(txt, stretch, fixed);
-
-  planar_bitblt(display, ch, 0, 50, 0);
-  planar_bitblt(display, ch, 0, 50, 1);
-  planar_bitblt(display, ch, 0, 50, 2);
-  planar_bitblt(display, ch, 0, 50, 3);
+  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 50, i, true);
 
   txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
 
   free(ch);
   ch = render_text(txt, stretch, fixed);
 
-  planar_bitblt(display, ch, 0, 70, 0);
-  planar_bitblt(display, ch, 0, 70, 1);
-  planar_bitblt(display, ch, 0, 70, 2);
-  planar_bitblt(display, ch, 0, 70, 3);
+  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 70, i, true);
 
   fixed=true;
   free(ch);
   ch = render_text(txt, stretch, fixed);
+  for (int i=0; i<background->depth;i++) planar_bitblt(background, ch, 0, 90, i, true);
+  free(ch);
 
-  planar_bitblt(display, ch, 0, 90, 0);
-  planar_bitblt(display, ch, 0, 90, 1);
-  planar_bitblt(display, ch, 0, 90, 2);
-  planar_bitblt(display, ch, 0, 90, 3);
+  // log evidence to file
+  write_bitmap("demo_text.bmp", pack(background), background->width, background->height, background->depth);
+}
 
-  // let's get interactive!
+void * demo(void * args) {
+  // planar_image * display = (planar_image *) args; // why bother
+
+  planar_image * img_cat = make_img(cat);
+  planar_image * color_cat = new_planar_image(32, 16, 4);
+  // copy cat image into only a few planes to make it have a different color than the text
+  planar_bitblt(color_cat, img_cat, 0, 0, 0, false);
+  planar_bitblt(color_cat, img_cat, 0, 0, 2, false);
+
+  int i = 0; int j = 0;
+  int increment_i = 1; int increment_j = 1;
+
+  // Mainloop
+  for (int counter = 0; counter < 1020; counter++) {
+      // Start with clean background; opaque bitblt
+      planar_bitblt(display, background, 0, 0, 0, false);
+      // Add kitty at coords; translucent bitblt
+      planar_bitblt(display, color_cat, i, j, 0, true);
+      
+      i += increment_i;
+      j += increment_j;
+      
+      // we can't yet paint outside of the screen; and unfortunately that
+      // includes the 32-bit width, even though our sprite is only 16 wide
+      if (i <= 0 || i >= display->width-33) increment_i = -increment_i;
+      if (j <= 0 || j >= display->height-17) increment_j = -increment_j;
+
+      display_redraw();
+      usleep(20000);
+  }
+
+  write_bitmap("demo_text_with_kitty.bmp", pack(display), background->width, background->height, background->depth);
+
+  return 0;
+}
+
+
+int main (int argc, char ** argv) {
+  display = new_planar_image(320, 200, 4);
+  background = new_planar_image(320, 200, 4);
+  write_demo_text();
+
+  display_init(argc, argv, display, palette, 4);
+
   pthread_t worker;
-  pthread_create(&worker, NULL, worker_func, display);
+  pthread_create(&worker, NULL, demo, display);
 
-  display_runloop(argc, argv, worker, display, palette, 4);
+  display_runloop(worker);
 }

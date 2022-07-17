@@ -37,7 +37,7 @@ planar_image * render_text (char * data, int ny, bool fixedWidth) {
 
 		render_char(char_placeholder, data[i], ny, fixedWidth);
 
-		planar_bitblt(rendered, char_placeholder, offset, 0, 0);
+		planar_bitblt(rendered, char_placeholder, offset, 0, 0, true);
 
 		uint32_t encoded = chars_encoded[(uint32_t) (data[i] - 32)];
 		if (((encoded >> 30) & 1) && !fixedWidth) offset += 4;

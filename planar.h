@@ -2,7 +2,7 @@
 #define PLANAR_H
 
 #include <stdint.h>
-
+#include <stdbool.h>
 
 /**
  * Planar images are multiple separate images,
@@ -35,5 +35,5 @@ uint32_t * pack(planar_image * image);
  * Place planar sprite at planar background on location 'at'.
  * 'From' allows you to blit a lower depth sprite onto a higher depth background, starting at plane 'from'.
  */
-void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane);
+void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane, bool zero_transparent);
 #endif
