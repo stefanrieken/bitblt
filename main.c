@@ -14,15 +14,15 @@ uint16_t cat[] = {
   0b0110000000000110,
   0b0111000000001110,
   0b0101100000011010,
-  0b0100100000010010,
+  0b0100111111110010,
   0b0111111111111110,
   0b0111111111111110,
   0b0111100110011110,
   0b0111100110011110,
-  0b1111111111111111,
-  0b0111111001111110,
-  0b1111111111111111,
-  0b0111001001001110,
+  0b0111111111111110,
+  0b1111111001111111,
+  0b0111111111111110,
+  0b1111001001001111,
   0b0111100000011110,
   0b0011110000111100,
   0b0001111111111000,
@@ -122,7 +122,7 @@ void * demo(void * args) {
   int increment_i = 1; int increment_j = 1;
 
   // Mainloop
-  for (int counter = 0; counter < 1020; counter++) {
+  for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque bitblt
       planar_bitblt(display, background, 0, 0, 0, false);
       // Add kitty at coords; translucent bitblt
@@ -131,10 +131,11 @@ void * demo(void * args) {
       i += increment_i;
       j += increment_j;
       
-      // we can't yet paint outside of the screen; and unfortunately that
-      // includes the 32-bit width, even though our sprite is only 16 wide
-      if (i <= 0 || i >= display->width-33) increment_i = -increment_i;
-      if (j <= 0 || j >= display->height-17) increment_j = -increment_j;
+      // We can draw safely outside the screen!
+      // But for the visual we will only dip outside briefly. 
+      // Take into account that our sprite is actually 32 wide.
+      if (i <= -32 || i >= display->width-16) increment_i = -increment_i;
+      if (j <= -16 || j >= display->height) increment_j = -increment_j;
 
       display_redraw();
       usleep(20000);

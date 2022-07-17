@@ -105,11 +105,19 @@ void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, i
       uint32_t bg_pixel_idx = ((i+at_y)*background->width) + j+at_x;
       uint32_t bg_byte_idx = bg_pixel_idx / 32;
 
+      // check for Y under- & overflow.
+      // This is easily skipped because we only blit one row at the time.
+      if (bg_byte_idx < 0) continue;
+      if (bg_byte_idx > background->width / 32 * background->height) continue;
+
       for(int n=0; n<sprite->depth; n++) {
-        background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
-        background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
-        // overflow any offset into next
-        if (offset > 0) {
+        // check for X out of bounds (under- or overflow)
+        if(j+at_x>=0 && j+at_x<background->width){
+	  background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
+	  background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
+	}
+        // overflow any offset into next, unless X+1 out of bounds
+        if (offset > 0 && j+at_x+32>=0 && j+at_x+32<background->width) {
          background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (32 - offset)); // clear required parts
          background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (32-offset); // add sprite
         }
