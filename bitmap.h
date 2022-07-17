@@ -1,2 +1,1 @@
-#include "planar.h"
-void write_bitmap(const char * filename, image * img, uint8_t bpp);
+void write_bitmap(const char * filename, uint32_t * packed_img, int width, int height, int bpp);

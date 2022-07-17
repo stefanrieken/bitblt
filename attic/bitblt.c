@@ -90,7 +90,8 @@ static inline uint32_t mask_2(uint32_t data) {
  */
 void bitblt(image * background, image * sprite, coords at, uint8_t bpp) {
   uint8_t pixels_per_word = 32 / bpp;
-  // As one word of data contains a row of 16 pixels,
+
+  // As one word of data contains a row of 32/bpp pixels,
   // the sprite may fall word-misaligned.
   // Establish the exact offset
   uint8_t offset = at.x % pixels_per_word;
@@ -98,7 +99,8 @@ void bitblt(image * background, image * sprite, coords at, uint8_t bpp) {
   // Forget about the offset until the very last moment
   // and focus on working per-word instead.
   // (That is what bit block transfer is all about.)
-  at.x = (at.x-offset) / pixels_per_word; // For clarity. Could just write x / PX_PER_WORD
+  at.x = (at.x-offset) / pixels_per_word; // For clarity. Could just write x / pixels_per_word
+
   // N.b. The y coordinate needs no such treatment.
   // (Assuming, as we do, that the images have a word-aligned width.)
 

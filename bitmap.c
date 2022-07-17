@@ -21,8 +21,8 @@ void write_16bit(FILE * file, uint32_t data) {
   fputc(data & 0xFF, file); fputc((data >> 8) & 0xFF, file);
 }
 
-void write_bitmap(const char * filename, image * img, uint8_t bpp) {
-  uint32_t data_length_words = (img->size.x * img->size.y * bpp) / 32;
+void write_bitmap(const char * filename, uint32_t * packed_img, int width, int height, int bpp) {
+  uint32_t data_length_words = (width * height * bpp) / 32;
 
   uint32_t num_colors = 2;
   for (int i=1; i<bpp;i++) num_colors *= 2;
@@ -35,8 +35,8 @@ void write_bitmap(const char * filename, image * img, uint8_t bpp) {
   write_32bit(file, 14 + 12 + (num_colors * 3)); // start of pixel array
   // bitmap core header. Trying to get away with the oldest, simplest variant
   write_32bit(file, 12); // sizeof header
-  write_16bit(file, img->size.x);
-  write_16bit(file, img->size.y);
+  write_16bit(file, width);
+  write_16bit(file, height * -1); // To invert the image the right way up!
   write_16bit(file, 1); // # color planes, always 1
   write_16bit(file, bpp);
   // Alternatively, extend to bitmap info header (and set x and y to 32 bit)
@@ -74,9 +74,10 @@ void write_bitmap(const char * filename, image * img, uint8_t bpp) {
     fputc(0x88, file); fputc(0x00, file); fputc(0x88, file);
   }
   // finally, data
-  // NOTE is bottom-up in BMP (or set image height negative)
+  // NOTE BPM thinks upside down. Can't just invert this loop.
+  // So instead we have set image height negative above!
   for (int i=0; i<data_length_words; i++) {
-    write_32bit_data(file, img->data[i]);
+    write_32bit_data(file, packed_img[i]);
   }
   fclose(file);
 }

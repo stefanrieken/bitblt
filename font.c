@@ -17,37 +17,47 @@ uint32_t chars_encoded[] = {
 
 };
 
-image * render (char * data, int ny, bool fixedWidth) {
-	int width = strlen(data);
-	while ((width %4) != 0) width++;
+planar_image * render_text (char * data, int ny, bool fixedWidth) {
+	// Allocate a buffer that is as wide as our max rendering.
+	// That max spacing is 6. (It may be reduced to 4 with variable width.)
+	int text_width = strlen(data);
+	text_width *= 6;
+	while ((text_width %32) != 0) text_width++;
 
-	image * txt = malloc(sizeof(image));
-	txt->size.x = width * 8; // more than enough
-	txt->size.y = 12*ny;  // 6-7 + drop
-	txt->data = calloc(1, (txt->size.x/4) * txt->size.y);
+	int text_height = 12*ny;
+
+	planar_image * rendered = new_planar_image(text_width, text_height, 1);
+
+	int char_width = 32;
+	int char_height = 12*ny;
+	planar_image * char_placeholder = new_planar_image(char_width, char_height, 1);
 
 	int offset = 1;
 	for (int i=0; i < strlen(data); i++) {
 
-		image * ch = to_image(data[i], ny, fixedWidth);
-		coords at = {offset,0};
-		planar_bitblt(&txt, &ch, at, 1);
-		free(ch);
+		render_char(char_placeholder, data[i], ny, fixedWidth);
+
+		planar_bitblt(rendered, char_placeholder, offset, 0, 0);
 
 		uint32_t encoded = chars_encoded[(uint32_t) (data[i] - 32)];
 		if (((encoded >> 30) & 1) && !fixedWidth) offset += 4;
 		else offset += 6;
 	}
-	return txt;
+
+	free(char_placeholder);
+
+	return rendered;
 }
 
-image * to_image(char ch, int ny, bool fixedWidth) {
-	image * image = malloc(sizeof(image));
-	image->size.x = 32; // because alignment
-	image->size.y = 12*ny;  // 6-7 + drop
-	image->data = calloc(1, (image->size.x / 4) * image->size.y);
-
-	if (ch < 32) return image; // control characters; return empty image
+void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
+	if (ch < 32) {
+		// control characters; return empty image
+		for (int i=0; i<((image->width/32)*image->height);i++) {
+			image->planes[0][i]=0;
+		}
+		
+		return;
+	}
 
 	ch -= 32;
 	unsigned int encoded = chars_encoded[(unsigned int) ch];
@@ -78,15 +88,19 @@ image * to_image(char ch, int ny, bool fixedWidth) {
 		if (narrow) {
 			if ((i+drop) % ny == 0)
 				encoded = encoded << 1;
-			image->data[i+drop+1] = encoded & (0b111 << (32-3));
+			image->planes[0][i+drop+1] = encoded & (0b111 << (32-3));
 			if ((i+drop+1) % ny == 0)
 				encoded = encoded << 4;
 		} else {
-			image->data[i+drop+1] = encoded & (0b11111 << (32-5));
+			image->planes[0][i+drop+1] = encoded & (0b11111 << (32-5));
 			if ((i+drop+1) % ny == 0)
 				encoded = encoded << 5;
 		}
 	}
 
-	return image;
+	// clear buffer below
+	for (int i=(height*ny)+drop+1;i<image->height;i++) {
+		image->planes[0][i]=0;
+	}
+	
 }

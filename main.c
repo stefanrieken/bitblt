@@ -64,107 +64,104 @@ uint8_t palette[] = {
  * Align into the first byte of the word.
  * Since we're little-endian, that's actually the bottom byte.
  */
-image * make_img(uint8_t * rawdata) {
-
-  image * image = malloc(sizeof(image));
-  image->size.x = 32;
-  image->size.y = 8;
-  image->data = malloc(sizeof(uint32_t) * 8);
+planar_image * make_img(uint8_t * rawdata) {
+  planar_image * image = new_planar_image(32, 8, 1);
   for(int i = 0; i < 8; i++) {
-    image->data[i] = rawdata[i];
+    image->planes[0][i] = rawdata[i];
   }
   return image;
 }
 
-image * make_canvas(int width, int height) {
-  image * image = malloc(sizeof(image));
-  image->size.x = width;
-  image->size.y = height;
-  image->data = calloc(1, sizeof(uint32_t) * (width / 32) * height);
-  return image;
-}
-
 void * worker_func(void * args) {
-  image ** backgrounds = (image **) args;
+  planar_image * background = (planar_image *) args;
+
+  planar_image * img_curve = make_img(curve);
+  planar_image * img_circle = make_img(circle);
 
   sleep(1);
 
-  coords at = { 0, 0};
-  coords at1 = { 1, 0};
+  planar_image * sprite = new_planar_image(32, 8, 4);
+  planar_bitblt(sprite, img_curve, 0, 0, 0);
 
-  image ** sprites = malloc(sizeof(image*) *4);
-  sprites[0] = make_img(curve);
-  sprites[1] = make_img(none);
-  sprites[2] = make_img(none);
-  sprites[3] = make_img(none);
-  write_bitmap("circle.bmp", backgrounds[0], 1);
-  write_bitmap("curve.bmp", sprites[0], 1);
-  planar_bitblt(backgrounds, sprites, at, 4);
+  write_bitmap("circle.bmp", background->planes[0], background->width, background->height, 1);
+
+  //write_bitmap("curve.bmp", sprite->planes[0], sprite->width, sprite->height, sprite->depth);
+  write_bitmap("curve.bmp", img_curve->planes[0], img_curve->width, img_curve->height, 1);
+  planar_bitblt(background, sprite, 0, 0, 0);
   display_redraw();
 
-  write_bitmap("curve_before_circle.bmp", pack(backgrounds,4), 4);
-  image ** mixed = malloc(sizeof(image*) *4);
-  mixed[0] = make_img(circle);
-  mixed[1] = make_img(curve);
-  mixed[2] = make_img(circle);
-  mixed[3] = make_img(curve);
-  write_bitmap("mixed.bmp", pack(mixed,4), 4);
+  write_bitmap("curve_before_circle.bmp", pack(background), background->width, background->height, background->depth);
+
+  planar_image * mixed = new_planar_image(32, 8, 4);
+  planar_bitblt(mixed, img_circle, 0, 0, 0);
+  planar_bitblt(mixed, img_curve, 0, 0, 1);
+  planar_bitblt(mixed, img_circle, 0, 0, 2);
+  planar_bitblt(mixed, img_circle, 0, 0, 3);
+
+  write_bitmap("mixed.bmp", pack(mixed), mixed->width, mixed->height, mixed->depth);
 
   return 0;
 }
 
 int main (int argc, char ** argv) {
+  planar_image * display = new_planar_image(320, 200, 4);
 
-  int width = 320;
-  int height = 200;
+  planar_image * c = make_img(circle);
+  planar_bitblt(display, c, 0, 0, 1);
 
-  coords at = { 0, 0};
-
-  image ** display = malloc(sizeof(image*) *4);
-  display[0] = make_canvas(width, height);
-  display[1] = make_canvas(width, height);
-  display[2] = make_canvas(width, height);
-  display[3] = make_canvas(width, height);
-
-  image * c = make_img(circle);
-  planar_bitblt(&display[1], &c, at, 1);
-
-  image ** ch = malloc(sizeof(image*) * 4);
   bool fixed = false;
   char * txt = "The quick brown fox jumps over the lazy dog.";
-  int stretch = 1;
-  ch[0] = render(txt, stretch, fixed);
-  ch[1] = render(txt, stretch, fixed);
-  ch[2] = render(txt, stretch, fixed);
-  ch[3] = render(txt, stretch, fixed);
-  coords at2 = { 0, 10};
-  planar_bitblt(display, ch, at2, 4);
+  int stretch = 2;
+  planar_image * ch = render_text(txt, stretch, fixed);
+  
+  // Copy text into all four planes
+  planar_bitblt(display, ch, 0, 10, 0);
+  planar_bitblt(display, ch, 0, 10, 1);
+  planar_bitblt(display, ch, 0, 10, 2);
+  planar_bitblt(display, ch, 0, 10, 3);
+
   fixed=true;
-  ch[0] = render(txt, stretch, fixed);
-  ch[1] = render(txt, stretch, fixed);
-  ch[2] = render(txt, stretch, fixed);
-  ch[3] = render(txt, stretch, fixed);
-  coords at3 = { 0, 30};
-  planar_bitblt(display, ch, at3, 4);
+  free(ch);
+  ch = render_text(txt, stretch, fixed);
+
+  planar_bitblt(display, ch, 0, 30, 0);
+  planar_bitblt(display, ch, 0, 30, 1);
+  planar_bitblt(display, ch, 0, 30, 2);
+  planar_bitblt(display, ch, 0, 30, 3);
+
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
   fixed = false;
-  ch[0] = render(txt, stretch, fixed);
-  ch[1] = render(txt, stretch, fixed);
-  ch[2] = render(txt, stretch, fixed);
-  ch[3] = render(txt, stretch, fixed);
-  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
-  coords at4 = { 0, 50};
-  planar_bitblt(display, ch, at4, 4);
-  fixed=true;
-  ch[0] = render(txt, stretch, fixed);
-  ch[1] = render(txt, stretch, fixed);
-  ch[2] = render(txt, stretch, fixed);
-  ch[3] = render(txt, stretch, fixed);
-  coords at5 = { 0, 70};
-  planar_bitblt(display, ch, at5, 4);
+  
+  free(ch);
+  ch = render_text(txt, stretch, fixed);
 
+  planar_bitblt(display, ch, 0, 50, 0);
+  planar_bitblt(display, ch, 0, 50, 1);
+  planar_bitblt(display, ch, 0, 50, 2);
+  planar_bitblt(display, ch, 0, 50, 3);
+
+  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
+
+  free(ch);
+  ch = render_text(txt, stretch, fixed);
+
+  planar_bitblt(display, ch, 0, 70, 0);
+  planar_bitblt(display, ch, 0, 70, 1);
+  planar_bitblt(display, ch, 0, 70, 2);
+  planar_bitblt(display, ch, 0, 70, 3);
+
+  fixed=true;
+  free(ch);
+  ch = render_text(txt, stretch, fixed);
+
+  planar_bitblt(display, ch, 0, 90, 0);
+  planar_bitblt(display, ch, 0, 90, 1);
+  planar_bitblt(display, ch, 0, 90, 2);
+  planar_bitblt(display, ch, 0, 90, 3);
+
+  // let's get interactive!
   pthread_t worker;
   pthread_create(&worker, NULL, worker_func, display);
 
-  display_runloop(argc, argv, display, palette, 4);
+  display_runloop(argc, argv, worker, display, palette, 4);
 }

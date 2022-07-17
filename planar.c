@@ -31,68 +31,84 @@ Map to packed-pixel / color index ('on the serial fly'):
 
 #include "planar.h"
 
-uint8_t gather_pixel(image ** images, uint32_t planar_pixel_index, uint32_t depth) {
+planar_image * new_planar_image(int width, int height, int depth) {
+  planar_image * result = malloc(sizeof(planar_image));
+  result->width = width;
+  result->height = height;
+  result->depth = depth;
+  result->planes = malloc(sizeof(uint32_t**)*depth);
+
+  int alloc_size = sizeof(uint32_t) * ((width+31) / 32) * height;
+
+  for (int i=0;i<depth;i++)
+  	result->planes[i]=calloc(1, alloc_size);
+  
+  return result;
+}
+
+uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
   uint8_t pixel = 0;
   uint32_t planar_word = planar_pixel_index / 32; // 32 pixels per word
   uint32_t planar_bit  = planar_pixel_index % 32; // 0 .. 31
 
-  for(int n=0; n<depth; n++) {
-    uint8_t bit = ((images[n]->data[planar_word]) >> (31-planar_bit)) & 0b1;
+  for(int n=0; n<image->depth; n++) {
+    uint8_t bit = ((image->planes[n][planar_word]) >> (31-planar_bit)) & 0b1;
     pixel |= bit << n;
   }
   return pixel;
 }
 
+
 /**
  * Convert a set of planar images into a packed-pixel image.
  */
-image * pack(image ** images, uint32_t num) {
-  image * result = malloc(sizeof(image)*4);
-  result->size.x = images[0]->size.x;
-  result->size.y = images[0]->size.y;
-  result->data = calloc(1,(sizeof(uint32_t) * result->size.x * result->size.y * num) / 32);
-  for (int i=0; i< result->size.y; i++) {
-    for (int j=0; j<result->size.x; j++) {
+uint32_t * pack(planar_image * image) {
+  uint32_t * result = calloc(1,(sizeof(uint32_t) * image->width * image->height * image->depth) / 32);
+  for (int i=0; i< image->height; i++) {
+    for (int j=0; j<image->width; j++) {
 
-      uint32_t planar_pixel_index = (i*images[0]->size.x) + j;
-      uint8_t pixel = gather_pixel(images, planar_pixel_index, num);
+      uint32_t planar_pixel_index = (i*image->width) + j;
+      uint8_t pixel = gather_pixel(image, planar_pixel_index);
 
       // We have a pixel, now drop it at the right place
-      uint32_t packed_pixel_index = planar_pixel_index * num; // num == bpp
+      uint32_t packed_pixel_index = planar_pixel_index * image->depth;
       uint32_t packed_word = packed_pixel_index / 32;
       uint32_t packed_bit = packed_pixel_index % 32; // 0, 2, .. 30
       //if (packed_bit != 0) packed_bit = 32-packed_bit;
-      result->data[packed_word] |= pixel << ((32-num)-packed_bit);
+      result[packed_word] |= pixel << ((32-image->depth)-packed_bit);
     }
   }
 
   return result;
 }
 
-void planar_bitblt(image ** backgrounds, image ** sprites, coords at, int depth) {
-  uint32_t offset = at.x % 32;
+void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane) {
+  uint32_t offset = at_x % 32;
 
-  for(int i=0; i<sprites[0]->size.y;i++) {
-    for(int j=0; j<sprites[0]->size.x;j+=32) {
-      uint32_t sprite_pixel_idx = (i*sprites[0]->size.x) + j;
+
+  for(int i=0; i<sprite->height;i++) {
+    for(int j=0; j<sprite->width;j+=32) {
+      uint32_t sprite_pixel_idx = (i*sprite->width) + j;
       uint32_t sprite_word_idx = sprite_pixel_idx / 32;
 
       uint32_t mask = 0;
-      for(int n=0; n<depth; n++) {
-        mask |= sprites[n]->data[sprite_word_idx];
+      
+      // 
+      for(int n=0; n<sprite->depth; n++) {
+        mask |= sprite->planes[n][sprite_word_idx];
       }
 
       // Calculate background position
-      uint32_t bg_pixel_idx = ((i+at.y)*backgrounds[0]->size.x) + j+at.x;
+      uint32_t bg_pixel_idx = ((i+at_y)*background->width) + j+at_x;
       uint32_t bg_byte_idx = bg_pixel_idx / 32;
 
-      for(int n=0; n<depth; n++) {
-        backgrounds[n]->data[bg_byte_idx] &= ~(mask >> offset); // clear required parts
-        backgrounds[n]->data[bg_byte_idx] |= sprites[n]->data[sprite_word_idx] >> offset; // add sprite
+      for(int n=0; n<sprite->depth; n++) {
+        background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
+        background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
         // overflow any offset into next
         if (offset > 0) {
-         backgrounds[n]->data[bg_byte_idx+1] &= ~(mask << (32 - offset)); // clear required parts
-         backgrounds[n]->data[bg_byte_idx+1] |= sprites[n]->data[sprite_word_idx] << (32-offset); // add sprite
+         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (32 - offset)); // clear required parts
+         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (32-offset); // add sprite
         }
       }
     }
