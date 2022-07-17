@@ -174,7 +174,7 @@ void write_demo_text() {
   free(ch);
 
   // log evidence to file
-  write_bitmap("demo_text.bmp", pack(background), background->width, background->height, background->depth);
+  write_bitmap("demo_text.bmp", palette2, pack(background), background->width, background->height, background->depth);
 }
 
 void * demo(void * args) {
@@ -214,7 +214,7 @@ void * demo(void * args) {
       usleep(20000);
   }
 
-  write_bitmap("demo_text_with_kitty.bmp", pack(display), background->width, background->height, background->depth);
+  write_bitmap("demo_text_with_kitty.bmp", palette2, pack(display), background->width, background->height, background->depth);
 
   return 0;
 }

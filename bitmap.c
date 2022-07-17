@@ -21,7 +21,7 @@ void write_16bit(FILE * file, uint32_t data) {
   fputc(data & 0xFF, file); fputc((data >> 8) & 0xFF, file);
 }
 
-void write_bitmap(const char * filename, uint32_t * packed_img, int width, int height, int bpp) {
+void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_img, int width, int height, int bpp) {
   uint32_t data_length_words = (width * height * bpp) / 32;
 
   uint32_t num_colors = 2;
@@ -49,29 +49,18 @@ void write_bitmap(const char * filename, uint32_t * packed_img, int width, int h
   // Color table. The old header implies RGB instead of RGBA
   // N.b. we actually have to write BGR!
   // 1bpp, 4bpp, 16bpp are all common; but 2bpp may be rare / unsupported
-  fputc(0x00, file); fputc(0x00, file); fputc(0x00, file);
-  fputc(0xFF, file); fputc(0xFF, file); fputc(0xFF, file);
+  for (int i=0; i<3*2;i++) {
+    fputc(palette[i], file);
+  }
   if (bpp >= 2) {
-    fputc(0x00, file); fputc(0xFF, file); fputc(0x00, file);
-    fputc(0xFF, file); fputc(0x00, file); fputc(0x00, file);
+    for (int i=3*2; i<3*4;i++) {
+      fputc(palette[i], file);
+    }
   }
   if (bpp >= 4) {
-    fputc(0xFF, file); fputc(0x00, file); fputc(0x00, file);
-
-    fputc(0x00, file); fputc(0x88, file); fputc(0x00, file);
-    fputc(0x88, file); fputc(0x00, file); fputc(0x00, file);
-    fputc(0x00, file); fputc(0x00, file); fputc(0x88, file);
-
-    fputc(0x88, file); fputc(0x88, file); fputc(0x88, file);
-
-    fputc(0x00, file); fputc(0x88, file); fputc(0x88, file);
-    fputc(0x88, file); fputc(0x88, file); fputc(0x00, file);
-    fputc(0x88, file); fputc(0x00, file); fputc(0x88, file);
-
-    fputc(0x00, file); fputc(0x00, file); fputc(0x88, file);
-    fputc(0x00, file); fputc(0x88, file); fputc(0x88, file);
-    fputc(0x88, file); fputc(0x88, file); fputc(0x00, file);
-    fputc(0x88, file); fputc(0x00, file); fputc(0x88, file);
+    for (int i=3*4; i<3*16;i++) {
+      fputc(palette[i], file);
+    }
   }
   // finally, data
   // NOTE BPM thinks upside down. Can't just invert this loop.
