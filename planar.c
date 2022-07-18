@@ -22,7 +22,6 @@ OR (background.layer2, sprite.layer2);
 10
 = blue, blue
 
-Map to packed-pixel / color index ('on the serial fly'):
 */
 
 #include <stdlib.h>
@@ -30,6 +29,10 @@ Map to packed-pixel / color index ('on the serial fly'):
 #include <stdint.h>
 
 #include "planar.h"
+
+uint32_t planar_aligned_width(uint32_t width) {
+  return width  + ((width % 32 == 0) ? 0 : (32-(width % 32)));
+}
 
 planar_image * new_planar_image(int width, int height, int depth) {
   planar_image * result = malloc(sizeof(planar_image));
@@ -64,18 +67,21 @@ uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
  */
 uint32_t * pack(planar_image * image) {
 
-  uint32_t width_aligned = image->width  + ((image->width % 32 == 0) ? 0 : (32-(image->width % 32)));
+  uint32_t image_width_aligned = planar_aligned_width(image->width);
 
-  uint32_t * result = calloc(1,(sizeof(uint32_t) * width_aligned * image->height * image->depth) / 32);
+  uint32_t px_per_word = 32 / image->depth;
+  uint32_t packed_width_aligned = image->width + ((image->width % px_per_word == 0) ? 0 : (px_per_word-(image->width % px_per_word)));
+
+  uint32_t * result = calloc(1,(sizeof(uint32_t) * packed_width_aligned * image->height * image->depth) / 32);
 
   for (int i=0; i< image->height; i++) {
     for (int j=0; j<image->width; j++) {
 
-      uint32_t planar_pixel_index = (i*width_aligned) + j;
+      uint32_t planar_pixel_index = (i*image_width_aligned) + j;
       uint8_t pixel = gather_pixel(image, planar_pixel_index);
 
       // We have a pixel, now drop it at the right place
-      uint32_t packed_pixel_index = planar_pixel_index * image->depth;
+      uint32_t packed_pixel_index = (i*packed_width_aligned*image->depth) + j*image->depth;
       uint32_t packed_word = packed_pixel_index / 32;
       uint32_t packed_bit = packed_pixel_index % 32; // 0, 2, .. 30
       //if (packed_bit != 0) packed_bit = 32-packed_bit;
@@ -90,8 +96,8 @@ void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, i
   int offset = at_x % 32;
   if (offset < 0) offset +=32;
 
- uint32_t background_width_aligned = background->width  + ((background->width % 32 == 0) ? 0 : (32-(background->width % 32)));
- uint32_t sprite_width_aligned = sprite->width  + (sprite->width % 32 == 0 ? 0 : 32-(sprite->width % 32));
+  uint32_t background_width_aligned = planar_aligned_width(background->width);
+  uint32_t sprite_width_aligned = planar_aligned_width(sprite->width);
 
   for(int i=0; i<sprite->height;i++) {
     for(int j=0; j<sprite->width;j+=32) {

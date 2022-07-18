@@ -7,6 +7,7 @@
 
 #include "bitmap.h"
 #include "planar.h"
+#include "packed.h"
 #include "display/display.h"
 #include "font.h"
 
@@ -165,10 +166,22 @@ void * demo(void * args) {
   planar_bitblt(color_cat, img_cat2, 0, 0, 2, false);
   planar_bitblt(color_cat, img_cat3, 0, 0, 3, false);
 
-//  int i = 0; int j = 0;
+  // show off some 'packed' tricks
+  packed_image * packed_bg = to_packed_image(pack(background), background->width, background->height, background->depth);
+  packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->width, color_cat->height, color_cat->depth);
+  packed_bitblt(packed_bg, packed_cat, 40, 40);
+  // um, postpone showing this off in packed until we actually can.
+  //packed_bitblt(packed_bg, packed_cat, -5, -5);
+  //packed_bitblt(packed_bg, packed_cat, packed_bg->size.x-5, packed_bg->size.y-5);
+  planar_image * unpacked = unpack(packed_bg);
+  planar_bitblt(display, unpacked, 0, 0, 0, false);
+  display_redraw();
+  sleep(5);
+
+  // now some planar tricks
   int i = 0; int j=0;
   int increment_i = 1; int increment_j = 1;
-
+  
   // Mainloop
   for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque bitblt

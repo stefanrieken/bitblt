@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "bitmap.h"
+#include "packed.h"
 
 // Little endian
 void write_32bit(FILE * file, uint32_t data) {
@@ -22,9 +23,10 @@ void write_16bit(FILE * file, uint32_t data) {
 }
 
 void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_img, int width, int height, int bpp) {
-  uint32_t width_aligned = width  + ((width % 32 == 0) ? 0 : (32-(width % 32)));
 
-  uint32_t data_length_words = (width_aligned * height * bpp) / 32;
+  uint32_t packed_width_aligned = packed_aligned_width(width, bpp);
+
+  uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
 
   uint32_t num_colors = 2;
   for (int i=1; i<bpp;i++) num_colors *= 2;
@@ -37,7 +39,7 @@ void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_im
   write_32bit(file, 14 + 12 + (num_colors * 3)); // start of pixel array
   // bitmap core header. Trying to get away with the oldest, simplest variant
   write_32bit(file, 12); // sizeof header
-  write_16bit(file, width_aligned);
+  write_16bit(file, packed_width_aligned);
   write_16bit(file, height * -1); // To invert the image the right way up!
   write_16bit(file, 1); // # color planes, always 1
   write_16bit(file, bpp);
