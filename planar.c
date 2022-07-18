@@ -63,11 +63,15 @@ uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
  * Convert a set of planar images into a packed-pixel image.
  */
 uint32_t * pack(planar_image * image) {
-  uint32_t * result = calloc(1,(sizeof(uint32_t) * image->width * image->height * image->depth) / 32);
+
+  uint32_t width_aligned = image->width  + ((image->width % 32 == 0) ? 0 : (32-(image->width % 32)));
+
+  uint32_t * result = calloc(1,(sizeof(uint32_t) * width_aligned * image->height * image->depth) / 32);
+
   for (int i=0; i< image->height; i++) {
     for (int j=0; j<image->width; j++) {
 
-      uint32_t planar_pixel_index = (i*image->width) + j;
+      uint32_t planar_pixel_index = (i*width_aligned) + j;
       uint8_t pixel = gather_pixel(image, planar_pixel_index);
 
       // We have a pixel, now drop it at the right place
@@ -83,12 +87,15 @@ uint32_t * pack(planar_image * image) {
 }
 
 void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane, bool zero_transparent) {
-  uint32_t offset = at_x % 32;
+  int offset = at_x % 32;
+  if (offset < 0) offset +=32;
 
+ uint32_t background_width_aligned = background->width  + ((background->width % 32 == 0) ? 0 : (32-(background->width % 32)));
+ uint32_t sprite_width_aligned = sprite->width  + (sprite->width % 32 == 0 ? 0 : 32-(sprite->width % 32));
 
   for(int i=0; i<sprite->height;i++) {
     for(int j=0; j<sprite->width;j+=32) {
-      uint32_t sprite_pixel_idx = (i*sprite->width) + j;
+      uint32_t sprite_pixel_idx = (i*sprite_width_aligned) + j;
       uint32_t sprite_word_idx = sprite_pixel_idx / 32;
 
       uint32_t mask = 0;
@@ -98,28 +105,35 @@ void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, i
           mask |= sprite->planes[n][sprite_word_idx];
         }
       } else {
-        mask = 0xFFFFFFFF;
+        // opaque bitblt; still dynamically mask off (clip) width at image width
+        uint32_t mask_end = sprite->width - j > 32 ? 32 : sprite->width - j;
+        for (int k = 0; k < mask_end;k++) {
+          mask |= 1 << 31-k;
+        }
       }
 
       // Calculate background position
-      uint32_t bg_pixel_idx = ((i+at_y)*background->width) + j+at_x;
+      uint32_t bg_pixel_idx = ((i+at_y)*background_width_aligned) + j+at_x;
       uint32_t bg_byte_idx = bg_pixel_idx / 32;
 
+
       // check for Y under- & overflow.
-      // This is easily skipped because we only blit one row at the time.
+      // These are easily skipped because we only blit one row at the time.
       if (bg_byte_idx < 0) continue;
-      if (bg_byte_idx > background->width / 32 * background->height) continue;
+      if (bg_byte_idx > background_width_aligned * background->height / 32) continue;
+
 
       for(int n=0; n<sprite->depth; n++) {
         // check for X out of bounds (under- or overflow)
-        if(j+at_x>=0 && j+at_x<background->width){
+
+        if(j+at_x>=0 && j+at_x-offset<background->width) {
 	  background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
 	  background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
 	}
         // overflow any offset into next, unless X+1 out of bounds
-        if (offset > 0 && j+at_x+32>=0 && j+at_x+32<background->width) {
-         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (32 - offset)); // clear required parts
-         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (32-offset); // add sprite
+        if (offset != 0 && j+at_x+32>=0 && j+at_x+32-offset<background->width) {
+         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (32-offset)); // clear required parts
+         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (32 - offset); // add sprite
         }
       }
     }

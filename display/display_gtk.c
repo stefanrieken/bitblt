@@ -19,10 +19,12 @@ void draw_on_surface(cairo_surface_t * surface) {
   int rowstride = cairo_image_surface_get_stride(surface);
   int width = cairo_image_surface_get_width(surface);
 
+ uint32_t screen_data_width_aligned = _screen_data->width  + ((_screen_data->width % 32 == 0) ? 0 : (32-(_screen_data->width % 32)));
+
   for (int i=0;i<_screen_data->height;i++) {
     for(int j=0; j<_screen_data->width;j++) {
       // gather indexed pixel data; find palette color
-      uint32_t idx = (i * _screen_data->width)+j;
+      uint32_t idx = (i * screen_data_width_aligned)+j;
       uint8_t * pal = &_palette[3*gather_pixel(_screen_data, idx)];
       // and copy to pixbuf
       uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];

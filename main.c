@@ -11,8 +11,8 @@
 #include "font.h"
 
 uint16_t cat[] = {
-  0b0110000000000110,
-  0b0111000000001110,
+  0b0110000000000000,
+  0b0111000000001111,
   0b0101100000011010,
   0b0100111111110010,
   0b0111111111111110,
@@ -98,9 +98,9 @@ uint8_t palette[] = {
  * Since we're little-endian, that's actually the bottom byte.
  */
 planar_image * make_img(uint16_t * rawdata) {
-  planar_image * image = new_planar_image(32, 16, 1);
+  planar_image * image = new_planar_image(16, 16, 1);
   for(int i = 0; i < 16; i++) {
-    image->planes[0][i] = rawdata[i];
+    image->planes[0][i] = rawdata[i] << 16; // shove into MSB
   }
   return image;
 }
@@ -158,14 +158,15 @@ void * demo(void * args) {
   planar_image * img_cat2 = make_img(cat_color2);
   planar_image * img_cat3 = make_img(cat_eyes);
 
-  planar_image * color_cat = new_planar_image(32, 16, 4);
+  planar_image * color_cat = new_planar_image(16, 16, 4);
 
   planar_bitblt(color_cat, img_cat, 0, 0, 0, false);
   planar_bitblt(color_cat, img_cat, 0, 0, 1, false);
   planar_bitblt(color_cat, img_cat2, 0, 0, 2, false);
   planar_bitblt(color_cat, img_cat3, 0, 0, 3, false);
 
-  int i = 0; int j = 0;
+//  int i = 0; int j = 0;
+  int i = 0; int j=0;
   int increment_i = 1; int increment_j = 1;
 
   // Mainloop
@@ -181,7 +182,7 @@ void * demo(void * args) {
       // We can draw safely outside the screen!
       // But for the visual effect we will only dip outside briefly. 
       // Take into account that our sprite is actually 32 wide.
-      if (i <= -32 || i >= display->width-16) increment_i = -increment_i;
+      if (i <= -16 || i >= display->width) increment_i = -increment_i;
       if (j <= -16 || j >= display->height) increment_j = -increment_j;
 
       display_redraw();
@@ -195,8 +196,8 @@ void * demo(void * args) {
 
 
 int main (int argc, char ** argv) {
-  display = new_planar_image(320, 200, 4);
-  background = new_planar_image(320, 200, 4);
+  display = new_planar_image(310, 200, 4);
+  background = new_planar_image(310, 200, 4);
   write_demo_text();
 
   display_init(argc, argv, display, palette, 4);
