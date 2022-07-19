@@ -38,7 +38,7 @@ planar_image * render_text (char * data, int ny, bool fixedWidth) {
 
 		render_char(char_placeholder, data[i], ny, fixedWidth);
 
-		planar_bitblt(rendered, char_placeholder, offset, 0, 0, true);
+		planar_bitblt_full(rendered, char_placeholder, (coords) {offset, 0}, true);
 
 		uint32_t encoded = chars_encoded[(uint32_t) (data[i] - 32)];
 		if (((encoded >> 30) & 1) && !fixedWidth) offset += 4;
@@ -53,7 +53,7 @@ planar_image * render_text (char * data, int ny, bool fixedWidth) {
 void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
 	if (ch < 32) {
 		// control characters; return empty image
-		for (int i=0; i<((image->width/32)*image->height);i++) {
+		for (int i=0; i<((image->size.x/WORD_SIZE)*image->size.y);i++) {
 			image->planes[0][i]=0;
 		}
 		
@@ -94,7 +94,7 @@ void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
 	}
 
 	// clear buffer below
-	for (int i=(height*ny)+1;i<image->height;i++) {
+	for (int i=(height*ny)+1;i<image->size.y;i++) {
 		image->planes[0][i]=0;
 	}
 	

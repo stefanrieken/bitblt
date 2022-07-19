@@ -36,8 +36,8 @@ uint32_t planar_aligned_width(uint32_t width) {
 
 planar_image * new_planar_image(int width, int height, int depth) {
   planar_image * result = malloc(sizeof(planar_image));
-  result->width = width;
-  result->height = height;
+  result->size.x = width;
+  result->size.y = height;
   result->depth = depth;
   result->planes = malloc(sizeof(uint32_t**)*depth);
 
@@ -67,15 +67,15 @@ uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
  */
 uint32_t * pack(planar_image * image) {
 
-  uint32_t image_width_aligned = planar_aligned_width(image->width);
+  uint32_t image_width_aligned = planar_aligned_width(image->size.x);
 
   uint32_t px_per_word = 32 / image->depth;
-  uint32_t packed_width_aligned = image->width + ((image->width % px_per_word == 0) ? 0 : (px_per_word-(image->width % px_per_word)));
+  uint32_t packed_width_aligned = image->size.x + ((image->size.x % px_per_word == 0) ? 0 : (px_per_word-(image->size.x % px_per_word)));
 
-  uint32_t * result = calloc(1,(sizeof(uint32_t) * packed_width_aligned * image->height * image->depth) / 32);
+  uint32_t * result = calloc(1,(sizeof(uint32_t) * packed_width_aligned * image->size.y * image->depth) / 32);
 
-  for (int i=0; i< image->height; i++) {
-    for (int j=0; j<image->width; j++) {
+  for (int i=0; i< image->size.y; i++) {
+    for (int j=0; j<image->size.x; j++) {
 
       uint32_t planar_pixel_index = (i*image_width_aligned) + j;
       uint8_t pixel = gather_pixel(image, planar_pixel_index);
@@ -92,17 +92,32 @@ uint32_t * pack(planar_image * image) {
   return result;
 }
 
-void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, int at_y, int from_plane, bool zero_transparent) {
-  int offset = at_x % 32;
-  if (offset < 0) offset +=32;
+void planar_bitblt(
+   planar_image * background,
+   planar_image * sprite,
+   coords from,
+   coords to,
+   coords at,
+   int from_plane,
+   bool zero_transparent
+  )
+{
+  // This sanity check is a bit baby'ing,
+  // but it might just make life easier somewhere
+  if (to.x > sprite->size.x) to.x = sprite->size.x;
+  if (to.y > sprite->size.y) to.y = sprite->size.y;
 
-  uint32_t background_width_aligned = planar_aligned_width(background->width);
-  uint32_t sprite_width_aligned = planar_aligned_width(sprite->width);
+  
+  int offset = at.x % WORD_SIZE;
+  if (offset < 0) offset +=WORD_SIZE;
 
-  for(int i=0; i<sprite->height;i++) {
-    for(int j=0; j<sprite->width;j+=32) {
+  uint32_t background_width_aligned = planar_aligned_width(background->size.x);
+  uint32_t sprite_width_aligned = planar_aligned_width(sprite->size.x);
+
+  for(int i=from.y; i<to.y;i++) {
+    for(int j=from.x; j<to.x;j+=WORD_SIZE) {
       uint32_t sprite_pixel_idx = (i*sprite_width_aligned) + j;
-      uint32_t sprite_word_idx = sprite_pixel_idx / 32;
+      uint32_t sprite_word_idx = sprite_pixel_idx / WORD_SIZE;
 
       uint32_t mask = 0;
       
@@ -112,36 +127,45 @@ void planar_bitblt(planar_image * background, planar_image * sprite, int at_x, i
         }
       } else {
         // opaque bitblt; still dynamically mask off (clip) width at image width
-        uint32_t mask_end = sprite->width - j > 32 ? 32 : sprite->width - j;
+        uint32_t mask_end = sprite->size.x - j > WORD_SIZE ? WORD_SIZE : sprite->size.x - j;
         for (int k = 0; k < mask_end;k++) {
-          mask |= 1 << 31-k;
+          mask |= 1 << (WORD_SIZE-1)-k;
         }
       }
 
       // Calculate background position
-      uint32_t bg_pixel_idx = ((i+at_y)*background_width_aligned) + j+at_x;
-      uint32_t bg_byte_idx = bg_pixel_idx / 32;
+      uint32_t bg_pixel_idx = ((i+at.y)*background_width_aligned) + j+at.x;
+      uint32_t bg_byte_idx = bg_pixel_idx / WORD_SIZE;
 
 
       // check for Y under- & overflow.
       // These are easily skipped because we only blit one row at the time.
       if (bg_byte_idx < 0) continue;
-      if (bg_byte_idx > background_width_aligned * background->height / 32) continue;
+      if (bg_byte_idx > background_width_aligned * background->size.y / WORD_SIZE) continue;
 
 
       for(int n=0; n<sprite->depth; n++) {
         // check for X out of bounds (under- or overflow)
 
-        if(j+at_x>=0 && j+at_x-offset<background->width) {
+        if(j+at.x>=0 && j+at.x-offset<background->size.x) {
 	  background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
 	  background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
 	}
         // overflow any offset into next, unless X+1 out of bounds
-        if (offset != 0 && j+at_x+32>=0 && j+at_x+32-offset<background->width) {
-         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (32-offset)); // clear required parts
-         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (32 - offset); // add sprite
+        if (offset != 0 && j+at.x+WORD_SIZE>=0 && j+at.x+WORD_SIZE-offset<background->size.x) {
+         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
+         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (WORD_SIZE - offset); // add sprite
         }
       }
     }
   }
 }
+
+void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, bool zero_transparent) {
+  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, zero_transparent);
+}
+
+void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane) {
+  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, false);
+}
+

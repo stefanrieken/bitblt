@@ -8,7 +8,7 @@
 
 static planar_image * _screen_data;
 static uint8_t * _palette;
-static uint32_t _depth;
+static int _depth;
 
 GtkWidget * drawing_area;
 static cairo_surface_t * surface;
@@ -19,10 +19,10 @@ void draw_on_surface(cairo_surface_t * surface) {
   int rowstride = cairo_image_surface_get_stride(surface);
   int width = cairo_image_surface_get_width(surface);
 
- uint32_t screen_data_width_aligned = _screen_data->width  + ((_screen_data->width % 32 == 0) ? 0 : (32-(_screen_data->width % 32)));
+ uint32_t screen_data_width_aligned = _screen_data->size.x  + ((_screen_data->size.x % WORD_SIZE == 0) ? 0 : (WORD_SIZE-(_screen_data->size.x % WORD_SIZE)));
 
-  for (int i=0;i<_screen_data->height;i++) {
-    for(int j=0; j<_screen_data->width;j++) {
+  for (int i=0;i<_screen_data->size.y;i++) {
+    for(int j=0; j<_screen_data->size.x;j++) {
       // gather indexed pixel data; find palette color
       uint32_t idx = (i * screen_data_width_aligned)+j;
       uint8_t * pal = &_palette[3*gather_pixel(_screen_data, idx)];
@@ -78,7 +78,7 @@ void display_init(int argc, char ** argv, planar_image * screen_data, uint8_t * 
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
   gtk_window_set_title(window, "pixbuf");
-  gtk_window_set_default_size(window, screen_data->width*SCALE, screen_data->height*SCALE);
+  gtk_window_set_default_size(window, screen_data->size.x*SCALE, screen_data->size.y*SCALE);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);

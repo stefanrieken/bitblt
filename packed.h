@@ -3,15 +3,11 @@
 #ifndef PACKED_H
 #define PACKED_H
 
+#include "shared.h"
 #include "planar.h"
 
-typedef struct coords {
-  uint32_t x;
-  uint32_t y;
-} coords;
-
 typedef struct packed_image {
-  uint32_t * data;
+  WORD_T * data;
   coords size;
   int depth;
 } packed_image;
