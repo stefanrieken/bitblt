@@ -24,6 +24,6 @@ uint32_t packed_aligned_width(uint32_t width, int bpp);
 /**
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
  */
-void packed_bitblt(packed_image * background, packed_image * sprite, int at_x, int at_y);
+void packed_bitblt(packed_image * background, packed_image * sprite, coords at, bool zero_transparent);
 
 #endif /* PACKED_H */

@@ -38,20 +38,6 @@ Blitting:
 #include <stdlib.h>
 #include "packed.h"
 
-#define MASK_LEFT 0xAAAAAAAA
-#define MASK_RIGHT 0x55555555
-#define PX_PER_WORD_2B 16
-#define BPP_2B 2
-
-#define MASK_3RD 0x88888888
-#define MASK_2ND 0x44444444
-#define MASK_1ST 0x22222222
-#define MASK_0TH 0x11111111
-#define PX_PER_WORD_4B 8
-#define BPP_4B 4
-
-uint32_t masks2[] = { MASK_RIGHT, MASK_LEFT, 0, 0 };
-uint32_t masks4[] = { MASK_0TH, MASK_1ST, MASK_2ND, MASK_3RD };
 
 packed_image * to_packed_image(uint32_t * data, int width, int height, int depth) {
   packed_image * image = malloc(sizeof(packed_image));
@@ -101,6 +87,18 @@ planar_image * unpack(packed_image * image) {
 }
 
 /**
+ * Generate a mask pattern that points out the leftmost pixel bits in a word for a given bpp.
+ * So for instance: 2 bpp => 010101.....; 4 bpp => 000100010001; etc.
+ */
+uint32_t get_mask_pattern(uint8_t bpp) {
+  uint32_t result = 0;
+  for (int i=0; i<WORD_SIZE/bpp;i++) {
+     result |= 1<<(i*bpp);
+  }
+  return result;
+}
+
+/**
  * Generate a transparency mask for one word of (pre-shifted) sprite data,
  * given a e.g. 2 bit color depth and 0b00 = transparent.
  * Test for a left bit (shifted right) OR a right bit to get 0b01.
@@ -109,74 +107,77 @@ planar_image * unpack(packed_image * image) {
  * Do this for a full 32-bit word at once.
  * ANDing the result with the background clears it wherever the sprite is not transparent.
  */
-static inline uint32_t mask(uint32_t data, uint32_t * masks, uint8_t bpp) {
-  // uint32_t result = data & masks[0];
-  // result |= (data & masks[1]) >> 1;
-  // result |= (data & masks[2]) >> 2;
-  // result |= (data & masks[3]) >> 3;
+static inline uint32_t make_mask(uint32_t data, uint32_t mask_pattern, uint8_t bpp) {
   uint32_t result = 0;
+
+  // If there's any data in any pixel nybble,
+  // we set the lsb of that nybble in 'result'.
   for (uint8_t i = 0; i < bpp; i++) {
-    result |= (data & masks[i]) >> i;
+    result |= (data & (mask_pattern << i)) >> i;
   }
-  // smear back
-  for (uint8_t i = 0; i < bpp; i++) {
+  // 'smear back': if lsb == 1, make all in nybble 1
+  for (uint8_t i = 0; i < bpp-1; i++) {
     result |= result << i;
   }
 
-  // and invert
-  return ~result;
-}
-
-static inline uint32_t mask_2(uint32_t data) {
-  uint32_t result = ((data & MASK_LEFT) >> 1) | (data & MASK_RIGHT);
-  return ~(result | (result << 1));
+  return result;
 }
 
 /**
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
  */
-void packed_bitblt(packed_image * background, packed_image * sprite, int at_x, int at_y) {
-  uint8_t pixels_per_word = 32 / background->depth;
+void packed_bitblt(packed_image * background, packed_image * sprite, coords at, bool zero_transparent) {
+  uint8_t pixels_per_word = WORD_SIZE / background->depth;
 
-  // As one word of data contains a row of 32/bpp pixels,
-  // the sprite may fall word-misaligned.
-  // Establish the exact offset
-  uint8_t offset = at_x % pixels_per_word;
+  // offset to the right of the applicable word in pixels
+  int offset = at.x % pixels_per_word;
+  if (offset < 0) offset += pixels_per_word;
 
-  // Forget about the offset until the very last moment
-  // and focus on working per-word instead.
-  // (That is what bit block transfer is all about.)
-  at_x = (at_x-offset) / pixels_per_word; // For clarity. Could just write x / pixels_per_word
-
-  // N.b. The y coordinate needs no such treatment.
-  // (Assuming, as we do, that the images have a word-aligned width.)
-
-  // Establish the bit masks required for the generic mask function.
-  // This part is a bit awkward but it means we can remain generic for n bpp
-  // while even allowing the mask function to be compiled inline.
-  uint32_t * masks = (background->depth == 2) ? masks2 : masks4;
+  // So for now, set at.x to a word boundary AND make it point to the word containing the pixel.
+  at.x = (at.x - offset) / pixels_per_word;
+  // also, pre-multiply offset with bpp
+  offset *= background->depth;
 
   uint32_t background_width_aligned = packed_aligned_width(background->size.x, background->depth);
   uint32_t sprite_width_aligned = packed_aligned_width(sprite->size.x, sprite->depth);
 
+  uint32_t mask_pattern = get_mask_pattern(sprite->depth);
+  
   for(int i = 0; i < sprite->size.y; i++) {
-    for (int j = 0; j < sprite->size.x / pixels_per_word; j++) {
-      uint32_t spr_word = sprite->data[(i * (sprite_width_aligned/pixels_per_word)) + j];
-      // Make up for any offset by shifting into two consecutive words; word 0 first
-      uint32_t spr_word0 = spr_word >> (offset * background->depth);
-      // Merge sprite into background by ANDing with calculated mask and ORing with sprite data
-      uint32_t * bg_word0 = &background->data[((at_y+i) * (background_width_aligned/pixels_per_word)) + (at_x+j)];
-      *bg_word0 = (*bg_word0 & mask(spr_word0, masks, background->depth)) | spr_word0;
+    for (int j = 0; j < sprite_width_aligned / pixels_per_word; j++) {
+      // if y out of bounds, we have nothing to do here
+      if (at.y+i < 0) continue;
+      if (at.y+i >= background->size.y) continue;
 
-      if (offset > 0) {
-        // blt the spillover into the next word
-        // TODO This is assuming we are well within background image boundaries!
-        // need to do this conditionally because a shift with 32 is AND behaves 'undefined'
-        uint32_t spr_word1 = spr_word << (32 - (offset * background->depth)); // fills with 'transparent', so mask = OK
-        uint32_t * bg_word1 = &background->data[((at_y+i) * (background_width_aligned/pixels_per_word)) + (at_x+j+1)];
-        *bg_word1 = (*bg_word1 & mask(spr_word1, masks, background->depth)) | spr_word1;
+      int spr_word_idx = (i * (sprite_width_aligned/pixels_per_word)) + j;
+      uint32_t spr_word = sprite->data[spr_word_idx];
+
+      uint32_t mask;
+      if (zero_transparent) {
+        mask = make_mask(spr_word, mask_pattern, sprite->depth);
+      } else {
+        // opaque bitblt; still dynamically mask off (clip) width at image width
+        uint32_t mask_end = sprite->size.x - (j*pixels_per_word) > WORD_SIZE ? WORD_SIZE : sprite->size.x - (j*pixels_per_word);
+        for (int k = 0; k < mask_end;k++) {
+          mask |= 1 << (WORD_SIZE-1)-k;
+        }
       }
 
+      // Merge sprite into background by ANDing with calculated mask and ORing with sprite data
+      int bg_word_idx = ((at.y+i) * (background_width_aligned/pixels_per_word)) + (at.x+j);
+
+      // Make up for any offset by shifting into two consecutive words; word 0 first
+      if (at.x+j >= 0 && at.x+j < background_width_aligned / pixels_per_word) {
+        uint32_t * bg_word0 = &background->data[bg_word_idx];
+        *bg_word0 = (*bg_word0 & ~(mask >> offset)) | (spr_word >> offset);
+      }
+
+      // blt any spillover into the next word
+      if (offset != 0 && at.x+j+1 >= 0 && at.x+j+1 < background_width_aligned / pixels_per_word) {
+        uint32_t * bg_word1 = &background->data[bg_word_idx+1];
+        *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
+      }	
     }
   }
 }
+

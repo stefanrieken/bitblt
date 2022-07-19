@@ -14,12 +14,14 @@ GtkWidget * drawing_area;
 static cairo_surface_t * surface;
 static cairo_pattern_t * pattern;
 
+bool display_finished = false;
+
 void draw_on_surface(cairo_surface_t * surface) {
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
   int width = cairo_image_surface_get_width(surface);
 
- uint32_t screen_data_width_aligned = _screen_data->size.x  + ((_screen_data->size.x % WORD_SIZE == 0) ? 0 : (WORD_SIZE-(_screen_data->size.x % WORD_SIZE)));
+ uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->size.x);
 
   for (int i=0;i<_screen_data->size.y;i++) {
     for(int j=0; j<_screen_data->size.x;j++) {
@@ -94,6 +96,9 @@ void display_init(int argc, char ** argv, planar_image * screen_data, uint8_t * 
 
 void display_runloop(pthread_t worker_thread) {
   gtk_main();
+  
+  display_finished = true;
+
   pthread_join(worker_thread, NULL);
 }
 
