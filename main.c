@@ -146,9 +146,9 @@ void draw_text(planar_image * on, char * text, int line, bool fixed) {
 
 // write directly to display
 void write_intro_text(planar_image * on) {
-  draw_text(on, "This screen and the cat demoes packed bitblt.", 1, false);
-  draw_text(on, "Next up, we do the same trick with planar bitblt,", 2, false);
-  draw_text(on, "where we can also clip the image somewhat.", 3, false);
+  draw_text(on, "This screen and the cat shows off packed bitblt,", 1, false);
+  draw_text(on, "including some vertical clipping of the cat's body.", 2, false);
+  draw_text(on, "The next screen shows the same in planar bitblt.", 3, false);
 }
 
 void write_demo_text(planar_image * on) {
@@ -198,9 +198,9 @@ void * demo(void * args) {
 
   for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque
-      packed_bitblt(packed_disp, packed_bg, (coords) {0,0}, false);
+      packed_bitblt_full(packed_disp, packed_bg, (coords) {0,0}, false);
       // Add kitty's head at coords; translucent
-      packed_bitblt(packed_disp, packed_cat, (coords) {i, j}, true);
+      packed_bitblt(packed_disp, packed_cat, (coords) {0,0}, (coords){16,16 + ((i>>3)%8)}, (coords) {i, j}, true);
 
       i += increment_i;
       j += increment_j;
@@ -238,7 +238,7 @@ void * demo(void * args) {
       // This only demoes height clipping; width clipping may work at word sizes only.
       // A practical work-around is to copy the clip area into a clip-sized image first.
       // So e.g. first copy out a 16- or 8-bit wide sprite from a sprite map before using it.
-      planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16}, (coords) {i,j}, 0, true);
+      planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16 + ((i>>3)%8)}, (coords) {i,j}, 0, true);
 
       i += increment_i;
       j += increment_j;

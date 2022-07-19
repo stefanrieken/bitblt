@@ -126,7 +126,15 @@ static inline uint32_t make_mask(uint32_t data, uint32_t mask_pattern, uint8_t b
 /**
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
  */
-void packed_bitblt(packed_image * background, packed_image * sprite, coords at, bool zero_transparent) {
+void packed_bitblt(
+    packed_image * background,
+    packed_image * sprite, 
+    coords from,
+    coords to,
+    coords at,
+    bool zero_transparent
+  )
+{
   uint8_t pixels_per_word = WORD_SIZE / background->depth;
 
   // offset to the right of the applicable word in pixels
@@ -140,11 +148,12 @@ void packed_bitblt(packed_image * background, packed_image * sprite, coords at, 
 
   uint32_t background_width_aligned = packed_aligned_width(background->size.x, background->depth);
   uint32_t sprite_width_aligned = packed_aligned_width(sprite->size.x, sprite->depth);
+  uint32_t to_width_aligned = packed_aligned_width(to.x, sprite->depth);
 
   uint32_t mask_pattern = get_mask_pattern(sprite->depth);
   
-  for(int i = 0; i < sprite->size.y; i++) {
-    for (int j = 0; j < sprite_width_aligned / pixels_per_word; j++) {
+  for(int i = from.y; i < to.y; i++) {
+    for (int j = 0; j < to_width_aligned / pixels_per_word; j++) {
       // if y out of bounds, we have nothing to do here
       if (at.y+i < 0) continue;
       if (at.y+i >= background->size.y) continue;
@@ -181,3 +190,6 @@ void packed_bitblt(packed_image * background, packed_image * sprite, coords at, 
   }
 }
 
+void packed_bitblt_full(packed_image * background, packed_image * sprite, coords at, bool zero_transparent) {
+  packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, zero_transparent);
+}

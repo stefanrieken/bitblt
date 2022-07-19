@@ -23,7 +23,10 @@ uint32_t packed_aligned_width(uint32_t width, int bpp);
 
 /**
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
+ * Copy sprite from top-left 'from' to bottom-right 'to', into background at position 'at'.
  */
-void packed_bitblt(packed_image * background, packed_image * sprite, coords at, bool zero_transparent);
+void packed_bitblt(packed_image * background, packed_image * sprite, coords from, coords to, coords at, bool zero_transparent);
 
+/** Convenience function that uses defaults for from, to (whole sprite) and from_plane (0). */
+void packed_bitblt_full(packed_image * background, packed_image * sprite, coords at, bool zero_transparent);
 #endif /* PACKED_H */
