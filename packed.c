@@ -48,6 +48,11 @@ packed_image * to_packed_image(uint32_t * data, int width, int height, int depth
   return image;
 }
 
+packed_image * new_packed_image(int width, int height, int depth) {
+  uint32_t * data = malloc(sizeof(uint32_t) * packed_aligned_width(width, depth) * height);
+  return to_packed_image(data, width, height, depth);
+}
+
 uint32_t packed_aligned_width(uint32_t width, int bpp) {
   uint32_t px_per_word = 32 / bpp;
   return width + ((width % px_per_word == 0) ? 0 : (px_per_word-(width % px_per_word)));

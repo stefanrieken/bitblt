@@ -146,7 +146,7 @@ void draw_text(planar_image * on, char * text, int line, bool fixed) {
 
 // write directly to display
 void write_intro_text(planar_image * on) {
-  draw_text(on, "This screen and the cat shows off packed bitblt,", 1, false);
+  draw_text(on, "This screen and the cat show off packed bitblt,", 1, false);
   draw_text(on, "including some vertical clipping of the cat's body.", 2, false);
   draw_text(on, "The next screen shows the same in planar bitblt.", 3, false);
 }
@@ -167,7 +167,9 @@ void write_demo_text(planar_image * on) {
 }
 
 void * demo(void * args) {
-  planar_image * display = (planar_image *) args; // why bother
+  display_data * dd = (display_data *) args;
+  planar_image * display = dd->planar_display;
+  
 
   planar_image * background = new_planar_image(310, 200, 4);
 
@@ -183,9 +185,11 @@ void * demo(void * args) {
   planar_bitblt_plane(color_cat, img_cat3, (coords) {0,0}, 3);
 
   // show off some 'packed' tricks
+  dd->packed = true;
+
   write_intro_text(background);
 
-  packed_image * packed_disp = to_packed_image(pack(display), display->size.x, display->size.y, display->depth);
+  packed_image * packed_disp = dd->packed_display;
   packed_image * packed_bg = to_packed_image(pack(background), display->size.x, display->size.y, display->depth);
   packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
@@ -212,18 +216,14 @@ void * demo(void * args) {
       if (i <= -16 || i >= display->size.x) increment_i = -increment_i;
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
 
-      // the display driver presently uses the planar 'display' for its data, so translate back
-      // NOTE this part makes the packed demo seem especially slow, where it actually isn't.
-      planar_image * unpacked = unpack(packed_disp);
-      planar_bitblt_full(display, unpacked, (coords) {0, 0}, -1);
-
-      if (!display_finished) {
+      if (!dd->display_finished) {
         display_redraw();
         usleep(20000); // don't time the display if there is none
       }
   }
 
   // now some planar tricks
+  dd->packed = false;
   write_demo_text(background);
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
@@ -251,7 +251,7 @@ void * demo(void * args) {
       if (i <= -16 || i >= display->size.x) increment_i = -increment_i;
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
 
-      if (!display_finished) {
+      if (!dd->display_finished) {
         display_redraw();
         usleep(20000); // don't time the display if there is none
       }
@@ -264,9 +264,13 @@ void * demo(void * args) {
 
 
 int main (int argc, char ** argv) {
-  planar_image * display = display = new_planar_image(310, 200, 4);
- 
-  display_init(argc, argv, display, palette, 4);
+  display_data * display = malloc(sizeof(display_data));
+
+  display->planar_display = new_planar_image(310, 200, 4);
+  display->packed_display = new_packed_image(310, 200, 4);
+  display->palette = palette;
+
+  display_init(argc, argv, display);
 
   pthread_t worker;
   pthread_create(&worker, NULL, demo, display);

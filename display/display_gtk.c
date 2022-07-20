@@ -6,7 +6,7 @@
 
 #define SCALE 4
 
-static planar_image * _screen_data;
+static display_data * _screen_data;
 static uint8_t * _palette;
 static int _depth;
 
@@ -16,18 +16,18 @@ static cairo_pattern_t * pattern;
 
 bool display_finished = false;
 
-void draw_on_surface(cairo_surface_t * surface) {
+void draw_planar_on_surface(cairo_surface_t * surface) {
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
   int width = cairo_image_surface_get_width(surface);
 
- uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->size.x);
+ uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->planar_display->size.x);
 
-  for (int i=0;i<_screen_data->size.y;i++) {
-    for(int j=0; j<_screen_data->size.x;j++) {
+  for (int i=0;i<_screen_data->planar_display->size.y;i++) {
+    for(int j=0; j<_screen_data->planar_display->size.x;j++) {
       // gather indexed pixel data; find palette color
       uint32_t idx = (i * screen_data_width_aligned)+j;
-      uint8_t * pal = &_palette[3*gather_pixel(_screen_data, idx)];
+      uint8_t * pal = &_palette[3*gather_pixel(_screen_data->planar_display, idx)];
       // and copy to pixbuf
       uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];
       pixel[0] = pal[0];
@@ -35,6 +35,39 @@ void draw_on_surface(cairo_surface_t * surface) {
       pixel[2] = pal[2];
     }
   }
+}
+
+void draw_packed_on_surface(cairo_surface_t * surface) {
+  uint8_t * pixels = cairo_image_surface_get_data(surface);
+  int rowstride = cairo_image_surface_get_stride(surface);
+  int width = cairo_image_surface_get_width(surface);
+
+  uint32_t pixels_per_word = WORD_SIZE / _screen_data->packed_display->depth;
+
+  uint32_t screen_data_width_aligned = packed_aligned_width(_screen_data->packed_display->size.x, _screen_data->packed_display->depth);
+
+  for (int i=0;i<_screen_data->packed_display->size.y;i++) {
+    for(int j=0; j<_screen_data->packed_display->size.x;j++) {
+      // gather indexed pixel data; find palette color
+      uint32_t pixel_idx = (i * screen_data_width_aligned)+j;
+      uint32_t pixel_word_idx = pixel_idx / pixels_per_word;
+      uint32_t shift = (pixel_idx % pixels_per_word) * _depth;
+
+      uint8_t px = (_screen_data->packed_display->data[pixel_word_idx] >> ((WORD_SIZE-_depth) - shift)) & 0b1111; // TODO that's a fixed 4-bit mask
+      uint8_t * pal = &_palette[3*px];
+      // and copy to pixbuf
+      uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];
+      pixel[0] = pal[0];
+      pixel[1] = pal[1];
+      pixel[2] = pal[2];
+    }
+  }
+}
+
+void draw_on_surface(cairo_surface_t * surface) {
+  if (_screen_data->packed) draw_packed_on_surface(surface);
+  else draw_planar_on_surface(surface);
+
   cairo_surface_mark_dirty(surface);
 }
 
@@ -71,16 +104,16 @@ void delete_cb(GtkWidget *widget, GdkEventType *event, gpointer userdata) {
   gtk_main_quit();
 }
 
-void display_init(int argc, char ** argv, planar_image * screen_data, uint8_t * palette, uint32_t depth) {
+void display_init(int argc, char ** argv, display_data * screen_data) {
   _screen_data = screen_data;
-  _palette = palette;
-  _depth = depth;
+  _palette = _screen_data->palette;
+  _depth = _screen_data->planar_display->depth;
 
   gtk_init (&argc, &argv);
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
   gtk_window_set_title(window, "pixbuf");
-  gtk_window_set_default_size(window, screen_data->size.x*SCALE, screen_data->size.y*SCALE);
+  gtk_window_set_default_size(window, screen_data->planar_display->size.x*SCALE, screen_data->planar_display->size.y*SCALE);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
@@ -97,7 +130,7 @@ void display_init(int argc, char ** argv, planar_image * screen_data, uint8_t * 
 void display_runloop(pthread_t worker_thread) {
   gtk_main();
   
-  display_finished = true;
+  _screen_data->display_finished = true;
 
   pthread_join(worker_thread, NULL);
 }

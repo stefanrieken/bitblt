@@ -13,6 +13,8 @@ typedef struct packed_image {
 } packed_image;
 
 
+packed_image * new_packed_image(int width, int height, int depth);
+
 /** wrap raw data in a structure */
 packed_image * to_packed_image(uint32_t * data, int width, int height, int depth);
 
