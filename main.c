@@ -194,9 +194,6 @@ void * demo(void * args) {
   packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
   // Mainloop 1
-  // Notice this demo is a lot slower than the next one,
-  // but this is mainly due to all the conversion from planar to packed, and to planar again for the display.
-  // 
   int i = 0; int j=0;
   int increment_i = 1; int increment_j = 1;
 
