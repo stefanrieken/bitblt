@@ -99,7 +99,7 @@ void planar_bitblt(
    coords to,
    coords at,
    int from_plane,
-   bool zero_transparent
+   int transparent
   )
 {
   // This sanity check is a bit baby'ing,
@@ -107,7 +107,6 @@ void planar_bitblt(
   if (to.x > sprite->size.x) to.x = sprite->size.x;
   if (to.y > sprite->size.y) to.y = sprite->size.y;
 
-  
   int offset = at.x % WORD_SIZE;
   if (offset < 0) offset +=WORD_SIZE;
 
@@ -121,9 +120,10 @@ void planar_bitblt(
 
       uint32_t mask = 0;
       
-      if (zero_transparent) {
+      if (transparent != -1) {
         for(int n=0; n<sprite->depth; n++) {
           mask |= sprite->planes[n][sprite_word_idx];
+          if ((transparent >> n) & 0b1) mask = ~mask;
         }
       } else {
         // opaque bitblt; still dynamically mask off (clip) width at image width
@@ -145,27 +145,30 @@ void planar_bitblt(
 
 
       for(int n=0; n<sprite->depth; n++) {
+        uint32_t sprite_word = sprite->planes[n][sprite_word_idx];
+        if (transparent >> n) sprite_word &= mask; // this is how we select out the transparent color; amazing, no?
+
         // check for X out of bounds (under- or overflow)
 
         if(j+at.x>=0 && j+at.x-offset<background->size.x) {
 	  background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
-	  background->planes[from_plane+n][bg_byte_idx] |= sprite->planes[n][sprite_word_idx] >> offset; // add sprite
+	  background->planes[from_plane+n][bg_byte_idx] |= sprite_word >> offset; // add sprite
 	}
         // overflow any offset into next, unless X+1 out of bounds
         if (offset != 0 && j+at.x+WORD_SIZE>=0 && j+at.x+WORD_SIZE-offset<background->size.x) {
          background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
-         background->planes[from_plane+n][bg_byte_idx+1] |= sprite->planes[n][sprite_word_idx] << (WORD_SIZE - offset); // add sprite
+         background->planes[from_plane+n][bg_byte_idx+1] |= sprite_word << (WORD_SIZE - offset); // add sprite
         }
       }
     }
   }
 }
 
-void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, bool zero_transparent) {
-  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, zero_transparent);
+void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, int transparent) {
+  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, transparent);
 }
 
 void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane) {
-  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, false);
+  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
 }
 

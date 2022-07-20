@@ -90,10 +90,10 @@ planar_image * unpack(packed_image * image) {
  * Generate a mask pattern that points out the leftmost pixel bits in a word for a given bpp.
  * So for instance: 2 bpp => 010101.....; 4 bpp => 000100010001; etc.
  */
-uint32_t get_mask_pattern(uint8_t bpp) {
+uint32_t repeat_pattern(uint32_t pattern, uint8_t bpp) {
   uint32_t result = 0;
   for (int i=0; i<WORD_SIZE/bpp;i++) {
-     result |= 1<<(i*bpp);
+     result |= pattern<<(i*bpp);
   }
   return result;
 }
@@ -132,7 +132,7 @@ void packed_bitblt(
     coords from,
     coords to,
     coords at,
-    bool zero_transparent
+    int transparent
   )
 {
   uint8_t pixels_per_word = WORD_SIZE / background->depth;
@@ -150,7 +150,8 @@ void packed_bitblt(
   uint32_t sprite_width_aligned = packed_aligned_width(sprite->size.x, sprite->depth);
   uint32_t to_width_aligned = packed_aligned_width(to.x, sprite->depth);
 
-  uint32_t mask_pattern = get_mask_pattern(sprite->depth);
+  uint32_t mask_pattern = repeat_pattern(1, sprite->depth);
+  uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
   
   for(int i = from.y; i < to.y; i++) {
     for (int j = 0; j < to_width_aligned / pixels_per_word; j++) {
@@ -162,8 +163,9 @@ void packed_bitblt(
       uint32_t spr_word = sprite->data[spr_word_idx];
 
       uint32_t mask;
-      if (zero_transparent) {
-        mask = make_mask(spr_word, mask_pattern, sprite->depth);
+      if (transparent != -1) {
+        mask = make_mask(spr_word ^ transparent_pattern, mask_pattern, sprite->depth);
+        spr_word &= mask;
       } else {
         // opaque bitblt; still dynamically mask off (clip) width at image width
         uint32_t mask_end = sprite->size.x - (j*pixels_per_word) > WORD_SIZE ? WORD_SIZE : sprite->size.x - (j*pixels_per_word);
@@ -190,6 +192,6 @@ void packed_bitblt(
   }
 }
 
-void packed_bitblt_full(packed_image * background, packed_image * sprite, coords at, bool zero_transparent) {
-  packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, zero_transparent);
+void packed_bitblt_full(packed_image * background, packed_image * sprite, coords at, int transparent) {
+  packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, transparent);
 }

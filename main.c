@@ -198,9 +198,10 @@ void * demo(void * args) {
 
   for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque
-      packed_bitblt_full(packed_disp, packed_bg, (coords) {0,0}, false);
+      packed_bitblt_full(packed_disp, packed_bg, (coords) {0,0}, -1);
       // Add kitty's head at coords; translucent
-      packed_bitblt(packed_disp, packed_cat, (coords) {0,0}, (coords){16,16 + ((i>>3)%8)}, (coords) {i, j}, true);
+      int translucent_color = (counter % 68 > 34) ? 3 : 0; // switch translucent color half of the time
+      packed_bitblt(packed_disp, packed_cat, (coords) {0,0}, (coords){16,16 + ((i>>3)%8)}, (coords) {i, j}, translucent_color);
 
       i += increment_i;
       j += increment_j;
@@ -214,7 +215,7 @@ void * demo(void * args) {
       // the display driver presently uses the planar 'display' for its data, so translate back
       // NOTE this part makes the packed demo seem especially slow, where it actually isn't.
       planar_image * unpacked = unpack(packed_disp);
-      planar_bitblt_full(display, unpacked, (coords) {0, 0}, false);
+      planar_bitblt_full(display, unpacked, (coords) {0, 0}, -1);
 
       if (!display_finished) {
         display_redraw();
@@ -233,12 +234,13 @@ void * demo(void * args) {
 
   for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque bitblt
-      planar_bitblt_full(display, background, (coords){0,0}, false);
+      planar_bitblt_full(display, background, (coords){0,0}, -1);
       // Add kitty's head at coords; translucent bitblt
       // This only demoes height clipping; width clipping may work at word sizes only.
       // A practical work-around is to copy the clip area into a clip-sized image first.
       // So e.g. first copy out a 16- or 8-bit wide sprite from a sprite map before using it.
-      planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16 + ((i>>3)%8)}, (coords) {i,j}, 0, true);
+      int translucent_color = (counter % 68 > 34) ? 3 : 0; // switch translucent color half of the time
+      planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16 + ((i>>3)%8)}, (coords) {i,j}, 0, translucent_color);
 
       i += increment_i;
       j += increment_j;

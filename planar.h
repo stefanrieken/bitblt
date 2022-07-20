@@ -50,11 +50,11 @@ void planar_bitblt(
    coords to,
    coords at,
    int from_plane,
-   bool zero_transparent
+   int transparent // select color; -1 is no transparency
   );
 
 /** Convenience function that uses defaults for from, to (whole sprite) and from_plane (0). */
-void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, bool zero_transparent);
+void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, int transparent);
 
 /** As above, but for copying a single plane. */
 void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane);
