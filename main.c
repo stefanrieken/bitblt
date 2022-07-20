@@ -190,7 +190,7 @@ void * demo(void * args) {
   write_intro_text(background);
 
   packed_image * packed_disp = dd->packed_display;
-  packed_image * packed_bg = to_packed_image(pack(background), display->size.x, display->size.y, display->depth);
+  packed_image * packed_bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
   packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
   // Mainloop 1
