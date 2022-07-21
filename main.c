@@ -10,6 +10,7 @@
 #include "packed.h"
 #include "display/display.h"
 #include "font.h"
+#include "draw.h"
 
 uint16_t cat[] = {
   0b0110000000000000,
@@ -222,6 +223,11 @@ void * demo(void * args) {
   // now some planar tricks
   dd->packed = false;
   write_demo_text(background);
+
+  // drawing primitives!
+  draw_circle(background->planes[1], background->size, (coords) {40,40}, (coords) {120,100}, false, false);
+  draw_circle(background->planes[2], background->size, (coords) {40,40}, (coords) {120,100}, false, true);
+
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
 
