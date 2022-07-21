@@ -30,13 +30,14 @@ void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, 
       int x = (j-from.x-rx);
       int y = (i-from.y-ry);
 
-      // To get a solid line, establish wether we're crossing a boundary at this pixel,
-      // with 'outward' being more outwards from the center.
       int value = (x*x)*(ry*ry) + (y*y)*(rx*rx);
 
-      int xsign = (x == 0) ? 0 : (x/abs(x)); // missing a standard C 'signum' function here
+      // missing a standard C 'signum' function here
+      int xsign = (x == 0) ? 0 : (x/abs(x));
       int ysign = (y == 0) ? 0 : (y/abs(y));
 
+      // To get a solid line, establish wether we're crossing a boundary at this pixel,
+      // with 'outward' being more outwards from the center.
       int outward;
       if (x*xsign > y*ysign) {
         outward = ((x+xsign)*(x+xsign)) * (ry*ry) + (y*y) * (rx*rx);
@@ -46,8 +47,10 @@ void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, 
 
       int bias = y == 0 ? x : x / y;
  
-      // Granted, these numbers get big, but the regular version where the
-      // outcome is near or below 1 would have required us to use floats.
+      // N.b. these numbers get way too big way too fast, but the regular version
+      // ( x^2/rx^2 + y^2/ry^2 = 1) would have required us to use floats. (What's worse?)
+      // In the end we're just using the ratio between rx^2and ry^2 to get our ellipse;
+      // we might also express this ratio with much less precision.
       bool inside = value < (rx*rx*ry*ry);
       bool on_line = inside && (outward >= (rx*rx*ry*ry));
 
@@ -57,5 +60,28 @@ void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, 
         
       }
     }
+  }
+}
+
+void draw_rect (WORD_T * data, coords size, coords from, coords to, bool fill) {
+  // since we may assume 1bpp, this one applies
+  int aligned_width = planar_aligned_width(size.x);
+
+  // do a silly thing to skip filling the middle
+  int stepx = fill ? 1 : (to.x - from.x)-1; 
+
+  // draw top line
+  for (int j=from.x; j<to.x;j++) {
+    data[(from.y*aligned_width+j)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(j%WORD_SIZE));
+  }
+  // draw middle; either fill or only sides
+  for (int i=from.y+1; i<to.y-1; i++) {
+    for (int j=from.x; j<to.x; j+=stepx) {
+      data[(i*aligned_width+j)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(j%WORD_SIZE)); 
+    }
+  }
+  // draw bottom line
+  for (int j=from.x; j<to.x;j++) {
+    data[((to.y-1)*aligned_width+j)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(j%WORD_SIZE));
   }
 }

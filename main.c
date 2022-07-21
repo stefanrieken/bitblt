@@ -228,6 +228,9 @@ void * demo(void * args) {
   draw_circle(background->planes[1], background->size, (coords) {40,40}, (coords) {120,100}, false, false);
   draw_circle(background->planes[2], background->size, (coords) {40,40}, (coords) {120,100}, false, true);
 
+  draw_rect(background->planes[1], background->size, (coords) {80,70}, (coords) {120,100}, false);
+  draw_rect(background->planes[2], background->size, (coords) {80,70}, (coords) {120,100}, false);
+
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
 
