@@ -231,6 +231,11 @@ void * demo(void * args) {
   draw_rect(background->planes[1], background->size, (coords) {80,70}, (coords) {120,100}, false);
   draw_rect(background->planes[2], background->size, (coords) {80,70}, (coords) {120,100}, false);
 
+  draw_line (background->planes[1], background->size, (coords) {10,15}, (coords) {170,170});
+  // integer rounding differences draws the same line going back slightly different
+  draw_line (background->planes[2], background->size, (coords) {170,170}, (coords) {10,15});
+  draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15});
+
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
 
