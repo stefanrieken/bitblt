@@ -270,6 +270,10 @@ void * demo(void * args) {
 
   write_bitmap("demo_text_with_kitty.bmp", palette, pack(display), background->size.x, background->size.y, background->depth);
 
+  uint8_t * palette_read;
+  packed_image * image_read = read_bitmap("demo_text_with_kitty.bmp", &palette_read);
+  write_bitmap("i_read_this_you_know.bmp", palette_read, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
+
   return 0;
 }
 
