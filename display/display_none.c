@@ -3,7 +3,7 @@
 // Don't wait up for us, we're not even a real display.
 bool display_finished;
 
-void display_init(int argc, char ** argv, display_data * screen_data) {
+void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb * draw_cb) {
   screen_data->display_finished = true;
 }
 

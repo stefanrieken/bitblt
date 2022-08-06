@@ -11,11 +11,12 @@
 // There exists a function called Bresenham's line algorithm,
 // which may account for the quirks converting pixels to coordinates.
 // Here we just derive the formula and caluclate Y for X.
+// TODO: this fails miserably if our line is drawn only in the Y direction
 void draw_line (WORD_T * data, coords size, coords from, coords to) {
   // since we may assume 1bpp, this one applies
   int aligned_width = planar_aligned_width(size.x);
 
-  // missing a standard C 'signum' function here  int dirx = (to.x-from.x) / abs(to.x-from.x);
+  // missing a standard C 'signum' function here
   int dirx = (to.x-from.x) / abs(to.x-from.x);
   int diry = (to.y-from.y) / abs(to.y-from.y);
 

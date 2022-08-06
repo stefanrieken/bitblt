@@ -10,6 +10,8 @@ static display_data * _screen_data;
 static uint8_t * _palette;
 static int _depth;
 
+static drawing_cb * _draw_cb;
+
 GtkWidget * drawing_area;
 static cairo_surface_t * surface;
 static cairo_pattern_t * pattern;
@@ -86,7 +88,7 @@ void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) 
   cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
 }
 
-void draw_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
+void draw_screen_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
   if (!(cairo_in_clip(cr, 0,0) || cairo_in_clip(cr, 31, 7))) return; // not (presently) drawing anything outside this area
 
   draw_on_surface(surface);
@@ -104,7 +106,29 @@ void delete_cb(GtkWidget *widget, GdkEventType *event, gpointer userdata) {
   gtk_main_quit();
 }
 
-void display_init(int argc, char ** argv, display_data * screen_data) {
+static coords previous;
+void clicked_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
+  previous.x = event->x / SCALE;
+  previous.y = event->y / SCALE;
+  _draw_cb(previous, previous);
+}
+
+void released_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
+  // we might want to dynamically (de)activate GDK_POINTER_MOTION_MASK as well
+  previous.x=-1;
+  previous.y=-1;
+}
+
+void move_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
+  if (previous.x != -1) {
+    _draw_cb(previous, (coords) {event->x / SCALE, event->y / SCALE});
+
+    previous.x = event->x / SCALE;
+    previous.y = event->y / SCALE;
+  }
+}
+
+void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb * draw_cb) {
   _screen_data = screen_data;
   _palette = _screen_data->palette;
   _depth = _screen_data->planar_display->depth;
@@ -121,8 +145,20 @@ void display_init(int argc, char ** argv, display_data * screen_data) {
   drawing_area = gtk_drawing_area_new();
   gtk_widget_set_size_request(drawing_area, 320,200);
   gtk_container_add(GTK_CONTAINER(window), drawing_area);
-  g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_cb), NULL);
+  g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_screen_cb), NULL);
   g_signal_connect(drawing_area,"configure-event", G_CALLBACK (configure_cb), NULL);
+
+  _draw_cb = draw_cb;
+
+  gtk_widget_set_events(GTK_WIDGET(drawing_area),
+    GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
+
+  previous.x=-1;
+  previous.y=-1;
+
+  g_signal_connect(drawing_area, "button-press-event", G_CALLBACK(clicked_cb), NULL);
+  g_signal_connect(drawing_area, "button-release-event", G_CALLBACK(released_cb), NULL);
+  g_signal_connect (G_OBJECT (drawing_area), "motion-notify-event",G_CALLBACK (move_cb), NULL);
 
   gtk_widget_show_all(GTK_WIDGET(window));
 }

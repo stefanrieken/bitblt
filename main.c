@@ -150,6 +150,7 @@ void write_intro_text(planar_image * on) {
   draw_text(on, "This screen and the cat show off packed bitblt,", 1, false);
   draw_text(on, "including some vertical clipping of the cat's body.", 2, false);
   draw_text(on, "The next screen shows the same in planar bitblt.", 3, false);
+  draw_text(on, "You can also draw some pixels there during animation.", 4, false);
 }
 
 void write_demo_text(planar_image * on) {
@@ -162,17 +163,20 @@ void write_demo_text(planar_image * on) {
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
   draw_text(on, txt, 3, true);
 
-  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;";
+  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;                    ";
   draw_text(on, txt, 4, false);
   draw_text(on, txt, 5, true);
 }
+
+planar_image * background;
 
 void * demo(void * args) {
   display_data * dd = (display_data *) args;
   planar_image * display = dd->planar_display;
   
 
-  planar_image * background = new_planar_image(310, 200, 4);
+  // planar_image *
+  background = new_planar_image(310, 200, 4);
 
   planar_image * img_cat = make_img(cat, 24);
   planar_image * img_cat2 = make_img(cat_color2, 24);
@@ -277,18 +281,21 @@ void * demo(void * args) {
   return 0;
 }
 
+void draw_cb(coords from, coords to) {
+  draw_line(background->planes[0], background->size, from, to);
+}
 
 int main (int argc, char ** argv) {
-  display_data * display = malloc(sizeof(display_data));
+  display_data * dd = malloc(sizeof(display_data));
 
-  display->planar_display = new_planar_image(310, 200, 4);
-  display->packed_display = new_packed_image(310, 200, 4);
-  display->palette = palette;
+  dd->planar_display = new_planar_image(310, 200, 4);
+  dd->packed_display = new_packed_image(310, 200, 4);
+  dd->palette = palette;
 
-  display_init(argc, argv, display);
+  display_init(argc, argv, dd, draw_cb);
 
   pthread_t worker;
-  pthread_create(&worker, NULL, demo, display);
+  pthread_create(&worker, NULL, demo, dd);
 
   display_runloop(worker);
 }
