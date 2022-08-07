@@ -8,24 +8,56 @@
  */
 
 
-// There exists a function called Bresenham's line algorithm,
-// which may account for the quirks converting pixels to coordinates.
-// Here we just derive the formula and caluclate Y for X.
-// TODO: this fails miserably if our line is drawn only in the Y direction
+int signum(int input) {
+  if (input > 0) return 1;
+  return ((input < 0) ? -1 : 0); 
+}
+
+// This is now implemented according to Bresenham's line algorithm,
+// which has the quirk that it works slightly different for each octant,
+// because it wants to iterate over the 'faster moving' side of x or y,
+// only incrementing the other side when it exceeds a threshold value.
+// This, and the need to work with negative directions, is why we have
+// the big if-else block and the quirky in- or decrement in the for loops.
 void draw_line (WORD_T * data, coords size, coords from, coords to) {
   // since we may assume 1bpp, this one applies
   int aligned_width = planar_aligned_width(size.x);
 
-  // missing a standard C 'signum' function here
-  int dirx = (to.x-from.x) / abs(to.x-from.x);
-  int diry = (to.y-from.y) / abs(to.y-from.y);
+  int distx = abs(to.x-from.x);
+  int disty = abs(to.y-from.y);
 
-  int distx = ((dirx > 0 ? (to.x-from.x) : (from.x - to.x))+1) * dirx;
-  int disty = ((diry > 0 ? (to.y-from.y) : (from.y - to.y))+1) * diry;
+  int signx = signum(to.x-from.x);
+  int signy = signum(to.y-from.y);
 
-  for (int j=from.x; j!=to.x+dirx;j+=dirx) {
-    int y = from.y + (((j-from.x) * disty) / distx);
-    data[(y*aligned_width+j)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(j%WORD_SIZE));
+  int error = 0;
+
+  // we draw the starting pixel even if the loop below won't run
+  // (that happens if start an end are the same, so that the signums are zero)
+  data[(from.y*aligned_width+from.x)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(from.x%WORD_SIZE));
+
+  int x = from.x;
+  int y = from.y;
+
+  if (distx > disty) {
+    int y = from.y;
+    for (int x = from.x; x != to.x+signx; x += signx) {
+      data[(y*aligned_width+x)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(x%WORD_SIZE));
+      error += disty;
+      if ((error * 2) >= distx) {
+        y += signy;
+        error -= distx;
+      }
+    }
+  } else {
+    int x = from.x;
+    for (int y = from.y; y != to.y+signy; y += signy) {
+      data[(y*aligned_width+x)/WORD_SIZE] |= 1 << ((WORD_SIZE-1)-(x%WORD_SIZE));
+      error += distx;
+      if ((error *2) >= disty) {
+        x += signx;
+        error -= disty;
+      }
+    }
   }
 }
 
@@ -78,9 +110,8 @@ void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, 
 
       int value = (x*x)*(ry*ry) + (y*y)*(rx*rx);
 
-      // missing a standard C 'signum' function here
-      int xsign = (x == 0) ? 0 : (x/abs(x));
-      int ysign = (y == 0) ? 0 : (y/abs(y));
+      int xsign = signum(x);
+      int ysign = signum(y);
 
       // To get a solid line, establish wether we're crossing a boundary at this pixel,
       // with 'outward' being more outwards from the center.
