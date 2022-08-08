@@ -58,7 +58,7 @@ uint32_t packed_aligned_width(uint32_t width, int bpp) {
   return width + ((width % px_per_word == 0) ? 0 : (px_per_word-(width % px_per_word)));
 }
 
-  
+
 /**
  * Convert a packed-pixel image into a set of planar images.
  */
@@ -133,7 +133,7 @@ static inline uint32_t make_mask(uint32_t data, uint32_t mask_pattern, uint8_t b
  */
 void packed_bitblt(
     packed_image * background,
-    packed_image * sprite, 
+    packed_image * sprite,
     coords from,
     coords to,
     coords at,
@@ -157,7 +157,7 @@ void packed_bitblt(
 
   uint32_t mask_pattern = repeat_pattern(1, sprite->depth);
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
-  
+
   for(int i = from.y; i < to.y; i++) {
     for (int j = 0; j < to_width_aligned / pixels_per_word; j++) {
       // if y out of bounds, we have nothing to do here
@@ -175,7 +175,7 @@ void packed_bitblt(
         // opaque bitblt; still dynamically mask off (clip) width at image width
         uint32_t mask_end = sprite->size.x - (j*pixels_per_word) > WORD_SIZE ? WORD_SIZE : sprite->size.x - (j*pixels_per_word);
         for (int k = 0; k < mask_end;k++) {
-          mask |= 1 << (WORD_SIZE-1)-k;
+          mask |= 1 << ((WORD_SIZE-1)-k);
         }
       }
 
@@ -192,7 +192,7 @@ void packed_bitblt(
       if (offset != 0 && at.x+j+1 >= 0 && at.x+j+1 < background_width_aligned / pixels_per_word) {
         uint32_t * bg_word1 = &background->data[bg_word_idx+1];
         *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
-      }	
+      }
     }
   }
 }

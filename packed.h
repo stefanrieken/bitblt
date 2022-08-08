@@ -6,12 +6,6 @@
 #include "shared.h"
 #include "planar.h"
 
-typedef struct packed_image {
-  coords size;
-  int depth;
-  WORD_T * data;
-} packed_image;
-
 packed_image * new_packed_image(int width, int height, int depth);
 
 /** wrap raw data in a structure */

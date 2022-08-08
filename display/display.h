@@ -8,6 +8,7 @@ typedef struct display_data {
   planar_image * planar_display;
   packed_image * packed_display;
   uint8_t * palette;
+  unsigned int scale; // goes on top of built-in scale
   bool packed;
   bool display_finished;
 } display_data;

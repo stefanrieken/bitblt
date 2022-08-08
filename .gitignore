@@ -1,2 +1,6 @@
-bitblt
+demo-none
+demo-gtk
+spredit
 *.bmp
+*.o
+*.a

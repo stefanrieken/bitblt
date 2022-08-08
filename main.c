@@ -114,7 +114,7 @@ uint8_t palette[] = {
 
 	0x88, 0x88, 0x00,
 	0x00, 0x88, 0x88,
-	0xCC, 0xCC, 0xCC, // eye white 
+	0xCC, 0xCC, 0xCC, // eye white
 
 	0x22, 0x22, 0x22, // eyes
 	0x88, 0x88, 0x00,
@@ -156,7 +156,7 @@ void write_intro_text(planar_image * on) {
 void write_demo_text(planar_image * on) {
   bool fixed = false;
   char * txt = "The quick brown fox jumps over the lazy dog.";
-  
+
   draw_text(on, txt, 1, false);
   draw_text(on, txt, 2, true);
 
@@ -173,7 +173,6 @@ planar_image * background;
 void * demo(void * args) {
   display_data * dd = (display_data *) args;
   planar_image * display = dd->planar_display;
-  
 
   // planar_image *
   background = new_planar_image(310, 200, 4);
@@ -213,7 +212,7 @@ void * demo(void * args) {
       j += increment_j;
 
       // We can draw safely outside the screen!
-      // But for the visual effect we will only dip outside briefly. 
+      // But for the visual effect we will only dip outside briefly.
       // Take into account that our sprite is actually 32 wide.
       if (i <= -16 || i >= display->size.x) increment_i = -increment_i;
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
@@ -261,7 +260,7 @@ void * demo(void * args) {
       j += increment_j;
 
       // We can draw safely outside the screen!
-      // But for the visual effect we will only dip outside briefly. 
+      // But for the visual effect we will only dip outside briefly.
       // Take into account that our sprite is actually 32 wide.
       if (i <= -16 || i >= display->size.x) increment_i = -increment_i;
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
@@ -291,6 +290,7 @@ int main (int argc, char ** argv) {
   dd->planar_display = new_planar_image(310, 200, 4);
   dd->packed_display = new_packed_image(310, 200, 4);
   dd->palette = palette;
+  dd->scale = 1;
 
   display_init(argc, argv, dd, draw_cb);
 

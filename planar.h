@@ -12,17 +12,6 @@
  * per pixel.
  */
 
-
-/**
- * Administrative entity for a planar image.
- * Remember that the raw image arrays may still be stored anywhere.
- */
-typedef struct planar_image {
-   WORD_T ** planes;
-   coords size;
-   int depth;
-} planar_image;
-
 /** Because it is an exercise in allocation, here's a convenience function for you. */
 planar_image * new_planar_image(int width, int height, int depth);
 

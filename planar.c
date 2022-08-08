@@ -45,7 +45,7 @@ planar_image * new_planar_image(int width, int height, int depth) {
 
   for (int i=0;i<depth;i++)
   	result->planes[i]=calloc(1, alloc_size);
-  
+
   return result;
 }
 
@@ -119,7 +119,7 @@ void planar_bitblt(
       uint32_t sprite_word_idx = sprite_pixel_idx / WORD_SIZE;
 
       uint32_t mask = 0;
-      
+
       if (transparent != -1) {
         for(int n=0; n<sprite->depth; n++) {
           mask |= sprite->planes[n][sprite_word_idx];
@@ -129,7 +129,7 @@ void planar_bitblt(
         // opaque bitblt; still dynamically mask off (clip) width at image width
         uint32_t mask_end = sprite->size.x - j > WORD_SIZE ? WORD_SIZE : sprite->size.x - j;
         for (int k = 0; k < mask_end;k++) {
-          mask |= 1 << (WORD_SIZE-1)-k;
+          mask |= 1 << ((WORD_SIZE-1)-k);
         }
       }
 
@@ -171,4 +171,3 @@ void planar_bitblt_full(planar_image * background, planar_image * sprite, coords
 void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane) {
   planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
 }
-

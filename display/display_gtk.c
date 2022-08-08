@@ -4,11 +4,12 @@
 
 #include "display.h"
 
-#define SCALE 4
+#define FIXED_SCALE 4
 
 static display_data * _screen_data;
 static uint8_t * _palette;
 static int _depth;
+static unsigned int _scale;
 
 static drawing_cb * _draw_cb;
 
@@ -74,16 +75,13 @@ void draw_on_surface(cairo_surface_t * surface) {
 }
 
 void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) {
-  // The surface is 'patterned off' the Gdk Window,
-  // but apart from thatis just an off-display buffer.
-  // So we can draw it just once here (pending data changes)
   GdkWindow * window = gtk_widget_get_window(widget);
-  surface = gdk_window_create_similar_surface(window,
-        CAIRO_CONTENT_COLOR,
-        gtk_widget_get_allocated_width (widget),
-        gtk_widget_get_allocated_height (widget));
+  surface = cairo_image_surface_create(
+    CAIRO_FORMAT_RGB24,
+    gtk_widget_get_allocated_width (widget),
+    gtk_widget_get_allocated_height (widget)
+  );
 
-  // The derived 'pattern' object may also be set up once
   pattern = cairo_pattern_create_for_surface(surface);
   cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
 }
@@ -94,7 +92,7 @@ void draw_screen_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
   draw_on_surface(surface);
 
   cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
-  cairo_scale(cr, SCALE, SCALE);
+  cairo_scale(cr, _scale, _scale);
   cairo_set_source(cr, pattern);
   cairo_paint(cr);
 }
@@ -108,8 +106,8 @@ void delete_cb(GtkWidget *widget, GdkEventType *event, gpointer userdata) {
 
 static coords previous;
 void clicked_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
-  previous.x = event->x / SCALE;
-  previous.y = event->y / SCALE;
+  previous.x = event->x / (_scale);
+  previous.y = event->y / (_scale);
   _draw_cb(previous, previous);
 }
 
@@ -121,10 +119,10 @@ void released_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) 
 
 void move_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
   if (previous.x != -1) {
-    _draw_cb(previous, (coords) {event->x / SCALE, event->y / SCALE});
+    _draw_cb(previous, (coords) {event->x / _scale, event->y / _scale});
 
-    previous.x = event->x / SCALE;
-    previous.y = event->y / SCALE;
+    previous.x = event->x / _scale;
+    previous.y = event->y / _scale;
   }
 }
 
@@ -132,12 +130,13 @@ void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb
   _screen_data = screen_data;
   _palette = _screen_data->palette;
   _depth = _screen_data->planar_display->depth;
+  _scale = FIXED_SCALE * _screen_data->scale;
 
   gtk_init (&argc, &argv);
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
   gtk_window_set_title(window, "pixbuf");
-  gtk_window_set_default_size(window, screen_data->planar_display->size.x*SCALE, screen_data->planar_display->size.y*SCALE);
+  gtk_window_set_default_size(window, screen_data->planar_display->size.x*_scale, screen_data->planar_display->size.y*_scale);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
@@ -146,7 +145,7 @@ void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb
   gtk_widget_set_size_request(drawing_area, 320,200);
   gtk_container_add(GTK_CONTAINER(window), drawing_area);
   g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_screen_cb), NULL);
-  g_signal_connect(drawing_area,"configure-event", G_CALLBACK (configure_cb), NULL);
+  g_signal_connect(G_OBJECT(drawing_area),"configure-event", G_CALLBACK (configure_cb), NULL);
 
   _draw_cb = draw_cb;
 
@@ -165,7 +164,7 @@ void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb
 
 void display_runloop(pthread_t worker_thread) {
   gtk_main();
-  
+
   _screen_data->display_finished = true;
 
   pthread_join(worker_thread, NULL);
