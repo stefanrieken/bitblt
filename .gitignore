@@ -1,6 +1,7 @@
 demo-none
 demo-gtk
 spredit
+compose
 *.bmp
 *.o
 *.a
