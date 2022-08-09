@@ -135,10 +135,10 @@ planar_image * make_img(uint16_t * rawdata, int height) {
   return image;
 }
 
-void draw_text(planar_image * on, char * text, int line, bool fixed) {
+void draw_text(planar_image * on, char * text, int line, bool fixedWidth, bool fixedHeight) {
   int stretch = 1;
 
-  planar_image * txt = render_text(text, stretch, fixed, true);
+  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
   // copy into these 2 planes to get a green color
   planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 0);
   planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 2);
@@ -147,25 +147,25 @@ void draw_text(planar_image * on, char * text, int line, bool fixed) {
 
 // write directly to display
 void write_intro_text(planar_image * on) {
-  draw_text(on, "This screen and the cat show off packed bitblt,", 1, false);
-  draw_text(on, "including some vertical clipping of the cat's body.", 2, false);
-  draw_text(on, "The next screen shows the same in planar bitblt.", 3, false);
-  draw_text(on, "You can also draw some pixels there.", 4, false);
+  draw_text(on, "This screen and the cat show off packed bitblt,", 1, false, true);
+  draw_text(on, "including some vertical clipping of the cat's body.", 2, false, true);
+  draw_text(on, "The next screen shows the same in planar bitblt.", 3, false, true);
+  draw_text(on, "You can also draw some pixels there.", 4, false, true);
 }
 
 void write_demo_text(planar_image * on) {
   bool fixed = false;
   char * txt = "The quick brown fox jumps over the lazy dog.";
 
-  draw_text(on, txt, 1, false);
-  draw_text(on, txt, 2, true);
+  draw_text(on, txt, 1, false, false);
+  draw_text(on, txt, 2, true, false);
 
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
-  draw_text(on, txt, 3, true);
+  draw_text(on, txt, 3, true, false);
 
   txt = "!@#$%^&*()-=_+[]{}()|\\/\":;                    ";
-  draw_text(on, txt, 4, false);
-  draw_text(on, txt, 5, true);
+  draw_text(on, txt, 4, false, false);
+  draw_text(on, txt, 5, true, false);
 }
 
 planar_image * background;
