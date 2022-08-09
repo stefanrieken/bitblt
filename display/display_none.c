@@ -10,4 +10,4 @@ void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb
 void display_runloop(pthread_t worker_thread) {
   pthread_join(worker_thread, NULL);
 }
-void display_redraw() {}
+void display_redraw(area a) {}

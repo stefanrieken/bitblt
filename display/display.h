@@ -17,4 +17,4 @@ typedef void drawing_cb(coords from, coords to);
 
 void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb * draw_cb);
 void display_runloop(pthread_t worker_thread);
-void display_redraw();
+void display_redraw(area a);

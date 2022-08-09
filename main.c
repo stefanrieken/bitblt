@@ -138,10 +138,10 @@ planar_image * make_img(uint16_t * rawdata, int height) {
 void draw_text(planar_image * on, char * text, int line, bool fixed) {
   int stretch = 1;
 
-  planar_image * txt = render_text(text, stretch, fixed);
+  planar_image * txt = render_text(text, stretch, fixed, true);
   // copy into these 2 planes to get a green color
-  planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 0);
-  planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 2);
+  planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 0);
+  planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 2);
   free(txt);
 }
 
@@ -150,7 +150,7 @@ void write_intro_text(planar_image * on) {
   draw_text(on, "This screen and the cat show off packed bitblt,", 1, false);
   draw_text(on, "including some vertical clipping of the cat's body.", 2, false);
   draw_text(on, "The next screen shows the same in planar bitblt.", 3, false);
-  draw_text(on, "You can also draw some pixels there during animation.", 4, false);
+  draw_text(on, "You can also draw some pixels there.", 4, false);
 }
 
 void write_demo_text(planar_image * on) {
@@ -169,6 +169,7 @@ void write_demo_text(planar_image * on) {
 }
 
 planar_image * background;
+area all;
 
 void * demo(void * args) {
   display_data * dd = (display_data *) args;
@@ -176,6 +177,7 @@ void * demo(void * args) {
 
   // planar_image *
   background = new_planar_image(310, 200, 4);
+  all = (area) {(coords) {0,0}, (coords) {background->size.x, background->size.y}};
 
   planar_image * img_cat = make_img(cat, 24);
   planar_image * img_cat2 = make_img(cat_color2, 24);
@@ -218,7 +220,7 @@ void * demo(void * args) {
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
 
       if (!dd->display_finished) {
-        display_redraw();
+        display_redraw(all);
         usleep(20000); // don't time the display if there is none
       }
   }
@@ -228,16 +230,16 @@ void * demo(void * args) {
   write_demo_text(background);
 
   // drawing primitives!
-  draw_circle(background->planes[1], background->size, (coords) {40,40}, (coords) {120,100}, false, false);
-  draw_circle(background->planes[2], background->size, (coords) {40,40}, (coords) {120,100}, false, true);
+  draw_circle(background->planes[1], background->size, (coords) {40,40}, (coords) {120,100}, false, false, 1);
+  draw_circle(background->planes[2], background->size, (coords) {40,40}, (coords) {120,100}, false, true, 1);
 
-  draw_rect(background->planes[1], background->size, (coords) {80,70}, (coords) {120,100}, false);
-  draw_rect(background->planes[2], background->size, (coords) {80,70}, (coords) {120,100}, false);
+  draw_rect(background->planes[1], background->size, (coords) {80,70}, (coords) {120,100}, false, 1);
+  draw_rect(background->planes[2], background->size, (coords) {80,70}, (coords) {120,100}, false, 1);
 
-  draw_line (background->planes[1], background->size, (coords) {10,15}, (coords) {170,170});
+  draw_line (background->planes[1], background->size, (coords) {10,15}, (coords) {170,170}, 1);
   // integer rounding differences draws the same line going back slightly different
-  draw_line (background->planes[2], background->size, (coords) {170,170}, (coords) {10,15});
-  draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15});
+  draw_line (background->planes[2], background->size, (coords) {170,170}, (coords) {10,15}, 1);
+  draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15}, 1);
 
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
@@ -266,7 +268,7 @@ void * demo(void * args) {
       if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
 
       if (!dd->display_finished) {
-        display_redraw();
+        display_redraw(all);
         usleep(20000); // don't time the display if there is none
       }
   }
@@ -281,7 +283,8 @@ void * demo(void * args) {
 }
 
 void draw_cb(coords from, coords to) {
-  draw_line(background->planes[0], background->size, from, to);
+  draw_line(background->planes[0], background->size, from, to, 1);
+  display_redraw(all);
 }
 
 int main (int argc, char ** argv) {

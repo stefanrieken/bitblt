@@ -18,25 +18,25 @@ uint32_t chars_encoded[] = {
 
 };
 
-planar_image * render_text (char * data, int ny, bool fixedWidth) {
+planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight) {
 	// Allocate a buffer that is as wide as our max rendering.
 	// That max spacing is 6. (It may be reduced to 4 with variable width.)
 	int text_width = strlen(data);
 	text_width *= 6;
 	while ((text_width %32) != 0) text_width++;
 
-	int text_height = 12*ny;
+  // Base char height is 6; when descenders are encoded, it gets extended to 8
+	int text_height = 8*ny;
 
 	planar_image * rendered = new_planar_image(text_width, text_height, 1);
 
-	int char_width = 32;
-	int char_height = 12*ny;
-	planar_image * char_placeholder = new_planar_image(char_width, char_height, 1);
+  // the calculations expect a word size buffer
+	planar_image * char_placeholder = new_planar_image(WORD_SIZE, text_height, 1);
 
-	int offset = 1;
+	int offset = 0;
 	for (int i=0; i < strlen(data); i++) {
 
-		render_char(char_placeholder, data[i], ny, fixedWidth);
+		render_char(char_placeholder, data[i], ny, fixedWidth, fixedHeight);
 
 		planar_bitblt_full(rendered, char_placeholder, (coords) {offset, 0}, 0);
 
@@ -50,13 +50,13 @@ planar_image * render_text (char * data, int ny, bool fixedWidth) {
 	return rendered;
 }
 
-void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
+void render_char(planar_image * image, char ch, int ny, bool fixedWidth, bool fixedHeight) {
 	if (ch < 32) {
 		// control characters; return empty image
 		for (int i=0; i<((image->size.x/WORD_SIZE)*image->size.y);i++) {
 			image->planes[0][i]=0;
 		}
-		
+
 		return;
 	}
 
@@ -67,14 +67,15 @@ void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
 	unsigned int height = 6;
 	bool descender = false;
 
-	if ((encoded >> 31) & 1) { descender = true; }
+	if ((encoded >> 31) & 1) { descender = !fixedHeight; }
 	if (((encoded >> 30) & 1) && !fixedWidth) narrow = true;
 
 	encoded = encoded << 2;
 
-	for (int i=0; i<height*ny; i++) {
+  int i=0;
+	for (; i<height*ny; i++) {
 		// we extend for the descender by repeating a number of lines
-		if (descender && i >= 2*ny && i < 2*ny+2) {
+		if (descender && i >= 2*ny && i < 4*ny) {
 			unsigned int line = encoded & (0b11111 << (32-5));
 			encoded = (encoded >> 5) | line;
 			height += 1;
@@ -83,19 +84,21 @@ void render_char(planar_image * image, char ch, int ny, bool fixedWidth) {
 		if (narrow) {
 			if (i % ny == 0)
 				encoded = encoded << 1;
-			image->planes[0][i+1] = encoded & (0b111 << (32-3));
-			if ((i+1) % ny == 0)
+			image->planes[0][i] = encoded & (0b111 << (32-3));
+			if ((i) % ny == 0)
 				encoded = encoded << 4;
 		} else {
-			image->planes[0][i+1] = encoded & (0b11111 << (32-5));
-			if ((i+1) % ny == 0)
+			image->planes[0][i] = encoded & (0b11111 << (32-5));
+			if ((i) % ny == 0)
 				encoded = encoded << 5;
 		}
 	}
 
+  //printf("i: %d h: %d\n", i, (height*ny)+1);
 	// clear buffer below
-	for (int i=(height*ny)+1;i<image->size.y;i++) {
+	for (;i<image->size.y;i++) {
+    if (i > 8) printf("height: %d size: %d\n", i, image->size.y);
 		image->planes[0][i]=0;
 	}
-	
+
 }

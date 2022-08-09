@@ -6,5 +6,11 @@
  * to return rendered dimensions.
  */
 
-planar_image * render_text (char * data, int ny, bool fixedWidth);
-void render_char(planar_image * image, char ch, int ny, bool fixedWidth);
+/**
+ * data: the text to render
+ * ny: scale n times in the y direction
+ * fixedWidth: character width is fixed (to 6); otherwise it is either 6 or 4
+ * fixedHeight: do not stretch descenders, fixing height to 6 (otherwise it is 6 or 8)
+ */
+planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight);
+void render_char(planar_image * image, char ch, int ny, bool fixedWidth, bool fixedHeight);

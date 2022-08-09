@@ -81,10 +81,10 @@ planar_image * make_img(uint16_t * rawdata, int height) {
   return image;
 }
 
-void draw_text(planar_image * on, char * text, int line, bool fixed) {
+void draw_text(planar_image * on, char * text, int line, bool fixedWidth, bool fixedHeight) {
   int stretch = 1;
 
-  planar_image * txt = render_text(text, stretch, fixed);
+  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
   // copy into these 2 planes to get a green color
   planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 0);
   planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 2);
@@ -100,32 +100,48 @@ void * mainloop(void * args) {
     int x = (i % 2) * 8;
     int y = (i / 2) * 5;
     for (int plane=0; plane<4; plane++) {
-      if ((i >> plane) & 0b1) {
-        draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+8,y+5}, true);
-      }
+      draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+8,y+5}, true, (i >> plane) & 0b1);
     }
   }
   // toolbox comes below palette, which is 5*8=40 high
   planar_bitblt_full(background, make_img(toolbox, 24), (coords){0,40}, false);
   // checkerboard the toolbox
-  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {16,48}, true);
-  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 8,56}, true);
-  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {16,64}, true);
+  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {16,48}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 8,56}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {16,64}, true, 1);
   // checkerboard the edit window
   for (int i=0;i<64;i+=8) {
     for (int j=0;j<64;j+=8) {
       if (i%16 != j%16) {
-        draw_rect(background->planes[3], background->size, (coords) {16+j,i}, (coords) {16+j+8,i+8}, true);
+        draw_rect(background->planes[3], background->size, (coords) {16+j,i}, (coords) {16+j+8,i+8}, true, 1);
       }
     }
   }
+
+  display_redraw((area) {(coords) {0,0}, (coords){background->size.x, background->size.y}});
   return 0;
 }
 
+uint32_t color;
 void draw_cb(coords from, coords to) {
-  if(from.x > 15 && to.x > 15) {
-    draw_line(background->planes[0], background->size, from, to);
-    display_redraw();
+  if (to.x < 0 || to.y < 0 || from.x < 0 || from.y < 0) return;
+  if (from.x == to.x && from.y==to.y && to.x <16 && to.y < 40) {
+    // pick a color!
+    color = gather_pixel(background, to.y*planar_aligned_width(background->size.x)+to.x);
+  } else if(from.x > 15 && to.x > 15) {
+    // draw a color!
+    for(int i=0; i<background->depth; i++) {
+      draw_line(background->planes[i], background->size, from, to, ((color >> i) & 1));
+    }
+
+    // calculate the dirty area as a positive area
+    int fromx = (from.x < to.x ? from.x : to.x);
+    int fromy = from.y < to.y ? from.y : to.y;
+    int tox = from.x > to.x ? from.x : to.x;
+    int toy = from.y > to.y ? from.y : to.y;
+
+    // The '+1' is needed because 'draw_line' counts inclusive but redraw doesn't
+    display_redraw((area) { (coords){fromx,fromy}, (coords) {tox+1,toy+1} });
   }
 }
 

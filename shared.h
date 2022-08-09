@@ -11,6 +11,11 @@ typedef struct coords {
   int y;
 } coords;
 
+typedef struct area {
+  coords from;
+  coords to;
+} area;
+
 /**
  * 'Abstract class' for image,
  * as well as their 'implementation' aliases,

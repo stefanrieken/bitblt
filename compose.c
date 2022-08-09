@@ -2,16 +2,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "shared.h"
 #include "packed.h"
 #include "planar.h"
 #include "draw.h"
 #include "font.h"
 #include "display/display.h"
-
-typedef struct area {
-  coords from;
-  coords to;
-} area;
 
 struct composable;
 typedef void compose_cb (struct composable * c, image * on, area a);
@@ -84,9 +80,7 @@ void compose_fill_planar(composable * fill, planar_image * on, area dirty) {
   printf("composing fill\n");
 
   for (int i=0;i<on->depth;i++) {
-    // TODO rewrite planar paint functions to accept both '1' and '0' paint values
-    if ((fill->color >> i) & 0b01)
-      draw_rect(on->planes[i], on->size, dirty.from, dirty.to, true);
+    draw_rect(on->planes[i], on->size, dirty.from, dirty.to, true, (fill->color >> i) & 0b01);
   }
 }
 
@@ -113,6 +107,46 @@ composable * add_composable(composable * tree, composable * node) {
   return node;
 }
 
+#define MAX_DIRTY 8
+area dirty[MAX_DIRTY];
+int num_dirty;
+
+void clear_dirty() {
+  num_dirty=0;
+}
+
+void add_dirty(area d) {
+  // TODO also check for overlaps
+  if (num_dirty == MAX_DIRTY) {
+    // simply merge our rectangle with another entry
+    dirty[0].from.x = d.from.x < dirty[0].from.x ? d.from.x : dirty[0].from.x;
+    dirty[0].from.y = d.from.y < dirty[0].from.y ? d.from.y : dirty[0].from.y;
+    dirty[0].to.x = d.to.x > dirty[0].to.x ? d.to.x : dirty[0].to.x;
+    dirty[0].to.y = d.to.y < dirty[0].to.y ? d.to.y : dirty[0].to.y;
+  } else {
+    printf("add dirty: from %d %d to %d %d\n", d.from.x, d.from.y, d.to.x,d.to.y);
+    dirty[num_dirty].from.x = d.from.x;
+    dirty[num_dirty].from.y = d.from.y;
+    dirty[num_dirty].to.x = d.to.x+1;
+    dirty[num_dirty].to.y = d.to.y+1;
+    num_dirty++;
+  }
+}
+void recompose_dirty(composable * root, image * background) {
+  for (int i=0; i<num_dirty; i++) {
+    root->compose(root, background, dirty[i]);
+    display_redraw(dirty[i]);
+  }
+}
+
+void move(composable * c, coords dest) {
+  add_dirty((area) {c->from, c->to});
+  c->to.x = (c->to.x - c->from.x) + dest.x;
+  c->to.y = (c->to.y - c->from.y) + dest.y;
+  c->from = dest;
+  add_dirty((area) {c->from, c->to});
+}
+
 // Catty paletty! (and some garbage)
 uint8_t palette[] = {
 	0x00, 0x00, 0x00, // black (and / or transparent!)
@@ -137,10 +171,10 @@ uint8_t palette[] = {
 	0x20, 0x10, 0x59 // mouth
 };
 
-planar_image * draw_text(char * text, int line, bool fixed) {
+planar_image * draw_text(char * text, int line, bool fixedWidth, bool fixedHeight) {
   int stretch = 1;
 
-  planar_image * txt = render_text(text, stretch, fixed);
+  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
   planar_image * result = new_planar_image(txt->size.x, txt->size.y, 4);
     // copy into these 2 planes to get a green color
   planar_bitblt_plane(result, txt, (coords) {0, 0}, 0);
@@ -153,25 +187,30 @@ planar_image * background;
 void * demo(void * args) {
   composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
   composable * fill = add_composable(root, new_composable(compose_fill_planar, root->from, root->to));
-
-  planar_image * txt = draw_text("Compose & redraw objects!", 0, false);
-
-  composable * text = add_composable(root, new_composable(compose_planar, (coords){0,0}, txt->size));
-  text->image = txt;
-
-  // initial draw
   fill->color = 0b01;
+
+  planar_image * txt1 = draw_text("Compose & redraw", 0, false, false);
+  composable * text1 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
+  text1->image = txt1;
+
+  planar_image * txt2 = draw_text("objects!", 0, false, false);
+  composable * text2 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
+  text2->image = txt2;
+
+  // first a 'manual' composition
   root->compose(root, background, (area) {root->from, root->to});
-  display_redraw();
-  sleep(1);
-  
-  // now we re-draw only a 'dirty' area;
-  // but we also change the fill color for demo purposes;
-  // this shows a rectangle on the screen
-  fill->color = 0b101;
-  root->compose(root, background, (area) {(coords){12,12}, (coords){42,42}});
-  display_redraw();
-  
+  display_redraw((area) {root->from, root->to});
+
+  // then through 'dirty'
+
+  for (int i=0; i<96;i++) {
+    clear_dirty();
+    move(text2, (coords) {i,0});
+    recompose_dirty(root, background);
+    usleep(30000);
+  }
+
+  return 0;
 }
 
 int main (int argc, char ** argv) {
@@ -182,7 +221,7 @@ int main (int argc, char ** argv) {
   dd->scale = 1; // comes on top of any default scaling
 
   display_init(argc, argv, dd, NULL);
-  
+
   pthread_t worker;
   pthread_create(&worker, NULL, demo, dd);
 

@@ -19,15 +19,14 @@ static cairo_pattern_t * pattern;
 
 bool display_finished = false;
 
-void draw_planar_on_surface(cairo_surface_t * surface) {
+void draw_planar_on_surface(cairo_surface_t * surface, int x, int y, int width, int height) {
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
-  int width = cairo_image_surface_get_width(surface);
 
- uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->planar_display->size.x);
+  uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->planar_display->size.x);
 
-  for (int i=0;i<_screen_data->planar_display->size.y;i++) {
-    for(int j=0; j<_screen_data->planar_display->size.x;j++) {
+  for (int i=y;i<y+height;i++) {
+    for(int j=x; j<x+width;j++) {
       // gather indexed pixel data; find palette color
       uint32_t idx = (i * screen_data_width_aligned)+j;
       uint8_t * pal = &_palette[3*gather_pixel(_screen_data->planar_display, idx)];
@@ -40,17 +39,16 @@ void draw_planar_on_surface(cairo_surface_t * surface) {
   }
 }
 
-void draw_packed_on_surface(cairo_surface_t * surface) {
+void draw_packed_on_surface(cairo_surface_t * surface, int x, int y, int width, int height) {
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
-  int width = cairo_image_surface_get_width(surface);
 
   uint32_t pixels_per_word = WORD_SIZE / _screen_data->packed_display->depth;
 
   uint32_t screen_data_width_aligned = packed_aligned_width(_screen_data->packed_display->size.x, _screen_data->packed_display->depth);
 
-  for (int i=0;i<_screen_data->packed_display->size.y;i++) {
-    for(int j=0; j<_screen_data->packed_display->size.x;j++) {
+  for (int i=y;i<y+height;i++) {
+    for(int j=x; j<x+width;j++) {
       // gather indexed pixel data; find palette color
       uint32_t pixel_idx = (i * screen_data_width_aligned)+j;
       uint32_t pixel_word_idx = pixel_idx / pixels_per_word;
@@ -67,11 +65,10 @@ void draw_packed_on_surface(cairo_surface_t * surface) {
   }
 }
 
-void draw_on_surface(cairo_surface_t * surface) {
-  if (_screen_data->packed) draw_packed_on_surface(surface);
-  else draw_planar_on_surface(surface);
-
-  cairo_surface_mark_dirty(surface);
+void draw_on_surface(cairo_surface_t * surface, int x, int y, int width, int height) {
+  if (_screen_data->packed) draw_packed_on_surface(surface, x, y, width, height);
+  else draw_planar_on_surface(surface, x, y, width, height);
+  cairo_surface_mark_dirty_rectangle(surface, x*_scale, y*_scale, width*_scale, height*_scale);
 }
 
 void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) {
@@ -87,13 +84,11 @@ void configure_cb(GtkWidget * widget, GdkEventConfigure * event, gpointer data) 
 }
 
 void draw_screen_cb(GtkWidget *widget, cairo_t * cr, gpointer userdata) {
-  if (!(cairo_in_clip(cr, 0,0) || cairo_in_clip(cr, 31, 7))) return; // not (presently) drawing anything outside this area
-
-  draw_on_surface(surface);
 
   cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
   cairo_scale(cr, _scale, _scale);
   cairo_set_source(cr, pattern);
+
   cairo_paint(cr);
 }
 
@@ -135,14 +130,14 @@ void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb
   gtk_init (&argc, &argv);
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
-  gtk_window_set_title(window, "pixbuf");
+  gtk_window_set_title(window, "bitblt on Cairo");
   gtk_window_set_default_size(window, screen_data->planar_display->size.x*_scale, screen_data->planar_display->size.y*_scale);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
 
   drawing_area = gtk_drawing_area_new();
-  gtk_widget_set_size_request(drawing_area, 320,200);
+  gtk_widget_set_size_request(drawing_area, screen_data->planar_display->size.x*_scale, screen_data->planar_display->size.y*_scale);
   gtk_container_add(GTK_CONTAINER(window), drawing_area);
   g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_screen_cb), NULL);
   g_signal_connect(G_OBJECT(drawing_area),"configure-event", G_CALLBACK (configure_cb), NULL);
@@ -170,7 +165,18 @@ void display_runloop(pthread_t worker_thread) {
   pthread_join(worker_thread, NULL);
 }
 
-void display_redraw() {
-  if (drawing_area != NULL)
-    g_idle_add((GSourceFunc)gtk_widget_queue_draw,(void*)drawing_area);
+void display_redraw(area a) {
+  coords size = (coords) {(a.to.x-a.from.x), (a.to.y-a.from.y)};
+
+  // update cairo's buffer with ours
+  draw_on_surface(surface, a.from.x, a.from.y, size.x, size.y);
+
+  // then queue a gtk update from cairo's buffer
+    gtk_widget_queue_draw_area(
+      drawing_area,
+      a.from.x*_scale,
+      a.from.y*_scale,
+      size.x*_scale,
+      size.y*_scale
+    );
 }
