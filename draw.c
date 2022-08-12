@@ -12,6 +12,21 @@ int signum(int input) {
   return ((input < 0) ? -1 : 0);
 }
 
+/**
+ * Set drawing state to match a certain image depth.
+ * Use a depth of 1 to work with planar image planes.
+ */
+int _bpp; // bits per pixel
+int _ppw; // pixels per word
+WORD_T _mask;
+void configure_draw(int bpp) {
+  _bpp = bpp;
+  _ppw = WORD_SIZE / bpp;
+
+  _mask = 0;
+  for (int i=0;i<bpp;i++) _mask |= 1<<i;
+}
+
 // This is now implemented according to Bresenham's line algorithm,
 // which has the quirk that it works slightly different for each octant,
 // because it wants to iterate over the 'faster moving' side of x or y,
@@ -19,8 +34,7 @@ int signum(int input) {
 // This, and the need to work with negative directions, is why we have
 // the big if-else block and the quirky in- or decrement in the for loops.
 void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t value) {
-  // since we may assume 1bpp, this one applies
-  int aligned_width = planar_aligned_width(size.x);
+  int aligned_width = image_aligned_width(size.x, _bpp);
 
   int distx = abs(to.x-from.x);
   int disty = abs(to.y-from.y);
@@ -30,34 +44,41 @@ void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t val
 
   int error = 0;
 
+  // pre-calculate these multipliers before
+  // using them repeatedly in for loop
+  int y_offset = from.y*aligned_width*_bpp;
+  int addy = aligned_width*signy*_bpp;
+
+  int x_offset = from.x*_bpp;
+  int addx = signx*_bpp;
+
   // we draw the starting pixel even if the loop below won't run
   // (that happens if start an end are the same, so that the signums are zero)
-  // TODO no (repeated) multiplications and divisions per pixel!
-  data[(from.y*aligned_width+from.x)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(from.x%WORD_SIZE)));
-  data[(from.y*aligned_width+from.x)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(from.x%WORD_SIZE));
-
-  int x = from.x;
-  int y = from.y;
+  data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+  data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
 
   if (distx > disty) {
-    int y = from.y;
-    for (int x = from.x; x != to.x+signx; x += signx) {
-      data[(y*aligned_width+x)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(x%WORD_SIZE)));
-      data[(y*aligned_width+x)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(x%WORD_SIZE));
+    int x_offset_end = (to.x+signx)*_bpp; // add signx to make it inclusive
+    for (; x_offset != x_offset_end; x_offset += addx) {
+      // TODO surely we can replace / and % by WORD_SIZE
+      // with some smart bit shifting / masking as well?
+      data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
       error += disty;
       if ((error * 2) >= distx) {
-        y += signy;
+        y_offset += addy;
         error -= distx;
       }
     }
   } else {
-    int x = from.x;
-    for (int y = from.y; y != to.y+signy; y += signy) {
-      data[(y*aligned_width+x)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(x%WORD_SIZE)));
-      data[(y*aligned_width+x)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(x%WORD_SIZE));
+    // same as above, but for y
+    int y_offset_end = (to.y+signy) * aligned_width * _bpp;
+    for (; y_offset != y_offset_end; y_offset += addy) {
+      data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
       error += distx;
       if ((error *2) >= disty) {
-        x += signx;
+        x_offset += addx;
         error -= disty;
       }
     }
@@ -65,28 +86,32 @@ void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t val
 }
 
 void draw_rect (WORD_T * data, coords size, coords from, coords to, bool fill, uint32_t value) {
-  // since we may assume 1bpp, this one applies
-  int aligned_width = planar_aligned_width(size.x);
+  int aligned_width = image_aligned_width(size.x, _bpp);
 
-  // do a silly thing to skip filling the middle
-  int stepx = fill ? 1 : (to.x - from.x)-1;
+  int stepx = fill ? _bpp : ((to.x - from.x)*_bpp); // do a silly thing to skip filling the middle
+  int stepy = aligned_width*_bpp;
+
+  int y_offset = from.y*aligned_width*_bpp;
+  int y_offset_end = to.y*aligned_width*_bpp;
+
+  int x_offset_end=to.x*_bpp;
 
   // draw top line
-  for (int j=from.x; j<to.x;j++) {
-    data[(from.y*aligned_width+j)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(j%WORD_SIZE)));
-    data[(from.y*aligned_width+j)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(j%WORD_SIZE));
+  for (int x_offset=from.x*_bpp; x_offset<=x_offset_end;x_offset += _bpp) {
+    data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+    data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
   }
   // draw middle; either fill or only sides
-  for (int i=from.y+1; i<to.y-1; i++) {
-    for (int j=from.x; j<to.x; j+=stepx) {
-      data[(i*aligned_width+j)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(j%WORD_SIZE)));
-      data[(i*aligned_width+j)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(j%WORD_SIZE));
+  for (int i=y_offset+stepy; i<=y_offset_end; i+=stepy) {
+    for (int x_offset=from.x*_bpp; x_offset<=x_offset_end; x_offset+=stepx) {
+      data[WORD(i+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(i+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
     }
   }
   // draw bottom line
-  for (int j=from.x; j<to.x;j++) {
-    data[((to.y-1)*aligned_width+j)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(j%WORD_SIZE)));
-    data[((to.y-1)*aligned_width+j)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(j%WORD_SIZE));
+  for (int x_offset=from.x*_bpp; x_offset<=x_offset_end;x_offset += _bpp) {
+    data[WORD(y_offset_end+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+    data[WORD(y_offset_end+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
   }
 }
 
@@ -94,8 +119,7 @@ void draw_rect (WORD_T * data, coords size, coords from, coords to, bool fill, u
 // Our current implementation is probably way less optimized.
 void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, bool fill, uint32_t value) {
 
-  // since we may assume 1bpp, this one applies
-  int aligned_width = planar_aligned_width(size.x);
+  int aligned_width = image_aligned_width(size.x, _bpp);
 
   // We decide for each pixel in the given selection whether it's inside or outside the circle.
   // TODO Doubtlessly there will be more efficient algorithms which just calculate y from x.

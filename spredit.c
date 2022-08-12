@@ -94,6 +94,9 @@ void draw_text(planar_image * on, char * text, int line, bool fixedWidth, bool f
 planar_image * background;
 
 void * mainloop(void * args) {
+
+  configure_draw(1); // 1 bpp planes
+
   //display_data * dd = (display_data *) args;
   // populate the palette, as such:
   for (int i=0; i<16; i++) {
@@ -127,7 +130,7 @@ void draw_cb(coords from, coords to) {
   if (to.x < 0 || to.y < 0 || from.x < 0 || from.y < 0) return;
   if (from.x == to.x && from.y==to.y && to.x <16 && to.y < 40) {
     // pick a color!
-    color = gather_pixel(background, to.y*planar_aligned_width(background->size.x)+to.x);
+    color = gather_pixel(background, to.y*image_aligned_width(background->size.x, 1)+to.x);
   } else if(from.x > 15 && to.x > 15) {
     // draw a color!
     for(int i=0; i<background->depth; i++) {

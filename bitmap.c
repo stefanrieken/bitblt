@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "bitmap.h"
+#include "shared.h"
 
 // Little endian
 static void write_32bit(FILE * file, uint32_t data) {
@@ -25,7 +25,7 @@ static void write_16bit(FILE * file, uint32_t data) {
 
 void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_img, int width, int height, int bpp) {
 
-  uint32_t packed_width_aligned = packed_aligned_width(width, bpp);
+  uint32_t packed_width_aligned = image_aligned_width(width, bpp);
 
   uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
 
@@ -153,7 +153,7 @@ packed_image * read_bitmap(const char * filename, uint8_t ** palette) {
     height = -height;
   }
 
-  uint32_t packed_width_aligned = packed_aligned_width(width, bpp);
+  uint32_t packed_width_aligned = image_aligned_width(width, bpp);
   uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
 
   packed_image * result = malloc(sizeof(packed_image));
@@ -167,7 +167,6 @@ packed_image * read_bitmap(const char * filename, uint8_t ** palette) {
   }
 
   fclose(file);
-  
+
   return result;
 }
-

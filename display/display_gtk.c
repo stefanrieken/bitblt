@@ -23,7 +23,7 @@ void draw_planar_on_surface(cairo_surface_t * surface, int x, int y, int width, 
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
 
-  uint32_t screen_data_width_aligned = planar_aligned_width(_screen_data->planar_display->size.x);
+  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->planar_display->size.x, 1);
 
   for (int i=y;i<y+height;i++) {
     for(int j=x; j<x+width;j++) {
@@ -45,7 +45,7 @@ void draw_packed_on_surface(cairo_surface_t * surface, int x, int y, int width, 
 
   uint32_t pixels_per_word = WORD_SIZE / _screen_data->packed_display->depth;
 
-  uint32_t screen_data_width_aligned = packed_aligned_width(_screen_data->packed_display->size.x, _screen_data->packed_display->depth);
+  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->packed_display->size.x, _screen_data->packed_display->depth);
 
   for (int i=y;i<y+height;i++) {
     for(int j=x; j<x+width;j++) {

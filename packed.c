@@ -36,8 +36,8 @@ Blitting:
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "packed.h"
-
+#include "shared.h"
+#include "planar.h"
 
 packed_image * to_packed_image(uint32_t * data, int width, int height, int depth) {
   packed_image * image = malloc(sizeof(packed_image));
@@ -49,23 +49,17 @@ packed_image * to_packed_image(uint32_t * data, int width, int height, int depth
 }
 
 packed_image * new_packed_image(int width, int height, int depth) {
-  uint32_t * data = malloc(sizeof(uint32_t) * packed_aligned_width(width, depth) * height);
+  uint32_t * data = malloc(sizeof(uint32_t) * image_aligned_width(width, depth) * height);
   return to_packed_image(data, width, height, depth);
 }
-
-uint32_t packed_aligned_width(uint32_t width, int bpp) {
-  uint32_t px_per_word = 32 / bpp;
-  return width + ((width % px_per_word == 0) ? 0 : (px_per_word-(width % px_per_word)));
-}
-
 
 /**
  * Convert a packed-pixel image into a set of planar images.
  */
 planar_image * unpack(packed_image * image) {
 
-  uint32_t planar_width_aligned = planar_aligned_width(image->size.x);
-  uint32_t packed_width_aligned = packed_aligned_width(image->size.x, image->depth);
+  uint32_t planar_width_aligned = image_aligned_width(image->size.x, 1);
+  uint32_t packed_width_aligned = image_aligned_width(image->size.x, image->depth);
 
   planar_image * result = new_planar_image(image->size.x, image->size.y, image->depth);
 
@@ -151,9 +145,9 @@ void packed_bitblt(
   // also, pre-multiply offset with bpp
   offset *= background->depth;
 
-  uint32_t background_width_aligned = packed_aligned_width(background->size.x, background->depth);
-  uint32_t sprite_width_aligned = packed_aligned_width(sprite->size.x, sprite->depth);
-  uint32_t to_width_aligned = packed_aligned_width(to.x, sprite->depth);
+  uint32_t background_width_aligned = image_aligned_width(background->size.x, background->depth);
+  uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, sprite->depth);
+  uint32_t to_width_aligned = image_aligned_width(to.x, sprite->depth);
 
   uint32_t mask_pattern = repeat_pattern(1, sprite->depth);
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);

@@ -1,4 +1,4 @@
-LIBOBJECTS=bitmap.o draw.o font.o packed.o planar.o
+LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o
 
 all: demo-none demo-gtk spredit compose
 

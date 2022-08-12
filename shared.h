@@ -6,6 +6,10 @@
 #define WORD_SIZE 32
 #define WORD_T uint32_t
 
+// for calculating division and remainders by bitshifting and masking
+// e.g. word size=8; division by 8 = shift right by
+#define WORD(x) ((x) >> 5)
+#define BIT(x)  ((x) & (WORD_SIZE-1))
 typedef struct coords {
   int x;
   int y;
@@ -29,5 +33,11 @@ typedef struct image {
   coords size;
   int depth;
 } image, planar_image, packed_image;
+
+/**
+ * Calculate with of image line after word alignment.
+ * Use 1bpp to calculate for a planar image plane.
+ */
+uint32_t image_aligned_width(uint32_t width, int bpp);
 
 #endif /* BITBLT_SHARED_H */

@@ -13,8 +13,8 @@ struct composable;
 typedef void compose_cb (struct composable * c, image * on, area a);
 
 typedef struct composable {
-  coords from;
-  coords to;
+  area area;
+
   compose_cb * compose;
   union {
     struct composable ** nodes; // composite node, effectively always renders 'on' a root display canvas
@@ -27,18 +27,16 @@ typedef struct composable {
 } composable;
 
 static inline
-bool overlaps (composable * c, area a) {
+bool overlaps (area a, area b) {
   // not using <= as to is not inclusive (?)
-  return (c->from.x < a.to.x && a.from.x < c->to.x) &&
-         (c->from.y < a.to.y && a.from.y < c->to.y);
+  return (a.from.x < b.to.x && b.from.x < a.to.x) &&
+         (a.from.y < b.to.y && b.from.y < a.to.y);
 }
 
 void compose_tree (composable * tree, image * on, area dirty) {
-  printf("composing tree\n");
   for (int i=0;i<tree->num_nodes;i++) {
     composable * node = tree->nodes[i];
-    if (overlaps(node, dirty)) {
-      printf("leaf #%d overlaps 'dirty' area\n", i);
+    if (overlaps(node->area, dirty)) {
       // notice that we keep drawing on the original background
       node->compose(node, on, dirty);
     }
@@ -56,11 +54,10 @@ void compose_packed(composable * packed, packed_image * on, area dirty) {
   // and bitblt.to is either:
   // - packed.from - packed.to, to clip as instructed; or
   // - simply image.size assuming that the image isn't clipped anyway
-  packed_bitblt(on, packed->image, (coords){0,0}, packed->image->size, packed->from, packed->transparent);
+  packed_bitblt(on, packed->image, (coords){0,0}, packed->image->size, packed->area.from, packed->transparent);
 }
 
 void compose_planar(composable * planar, planar_image * on, area dirty) {
-  printf("composing planar image\n");
   // N.b.:
   // - We assume we have at least some overlap with the dirty area,
   //   and do not presently use it to refine our call to bitblt
@@ -71,14 +68,12 @@ void compose_planar(composable * planar, planar_image * on, area dirty) {
   // and bitblt.to is either:
   // - planar.from - packed.to, to clip as instructed; or
   // - simply image.size assuming that the image isn't clipped anyway
-  planar_bitblt(on, planar->image, (coords){0,0}, planar->image->size, planar->from, 0, planar->transparent);
+  planar_bitblt(on, planar->image, (coords){0,0}, planar->image->size, planar->area.from, 0, planar->transparent);
 }
 
 // A simple background color painter.
 // Optimized by looking at the dirty area (for a change).
 void compose_fill_planar(composable * fill, planar_image * on, area dirty) {
-  printf("composing fill\n");
-
   for (int i=0;i<on->depth;i++) {
     draw_rect(on->planes[i], on->size, dirty.from, dirty.to, true, (fill->color >> i) & 0b01);
   }
@@ -94,8 +89,8 @@ static inline
 composable * new_composable(compose_cb * cb, coords from, coords to) {
   composable * result = calloc(sizeof(composable), 1);
   result->compose = cb;
-  result->from = from;
-  result->to = to;
+  result->area.from = from;
+  result->area.to = to;
   return result;
 }
 
@@ -109,22 +104,46 @@ composable * add_composable(composable * tree, composable * node) {
 
 #define MAX_DIRTY 8
 area dirty[MAX_DIRTY];
-int num_dirty;
-
-void clear_dirty() {
+int num_dirty;void clear_dirty() {
   num_dirty=0;
 }
 
+/**
+ * merges a and b into a; returns a.
+ */
+static inline
+area * merge_dirty(area * a, area * b) {
+  a->from.x = a->from.x < b->from.x ? a->from.x : b->from.x;
+  a->from.y = a->from.y < b->from.y ? a->from.y : b->from.y;
+  a->to.x = a->to.x > b->to.x ? a->to.x : b->to.x;
+  a->to.y = a->to.y < b->to.y ? a->to.y : b->to.y;
+  return a;
+}
+
+/**
+ * Add dirty area to list of dirty areas, OR, if full,
+ * merge two dirty areas in list.
+ */
 void add_dirty(area d) {
-  // TODO also check for overlaps
+  for (int i=0; i<num_dirty;i++) {
+    if (overlaps(dirty[i], d)) {
+      merge_dirty(&dirty[i], &d);
+
+      // In case d overlaps (connects) multiple existing areas,
+      // joining them is more complex, as it reduces the number of
+      // items in the list. For now we accept a sub-optimal result.
+      return;
+    }
+  }
+
+  // if no overlap:
+
   if (num_dirty == MAX_DIRTY) {
+    // either we're full or we are configured to only have one dirty area
     // simply merge our rectangle with another entry
-    dirty[0].from.x = d.from.x < dirty[0].from.x ? d.from.x : dirty[0].from.x;
-    dirty[0].from.y = d.from.y < dirty[0].from.y ? d.from.y : dirty[0].from.y;
-    dirty[0].to.x = d.to.x > dirty[0].to.x ? d.to.x : dirty[0].to.x;
-    dirty[0].to.y = d.to.y < dirty[0].to.y ? d.to.y : dirty[0].to.y;
+    merge_dirty(&dirty[0], &d);
   } else {
-    printf("add dirty: from %d %d to %d %d\n", d.from.x, d.from.y, d.to.x,d.to.y);
+    // add new entry
     dirty[num_dirty].from.x = d.from.x;
     dirty[num_dirty].from.y = d.from.y;
     dirty[num_dirty].to.x = d.to.x+1;
@@ -140,11 +159,11 @@ void recompose_dirty(composable * root, image * background) {
 }
 
 void move(composable * c, coords dest) {
-  add_dirty((area) {c->from, c->to});
-  c->to.x = (c->to.x - c->from.x) + dest.x;
-  c->to.y = (c->to.y - c->from.y) + dest.y;
-  c->from = dest;
-  add_dirty((area) {c->from, c->to});
+  add_dirty(c->area);
+  c->area.to.x = (c->area.to.x - c->area.from.x) + dest.x;
+  c->area.to.y = (c->area.to.y - c->area.from.y) + dest.y;
+  c->area.from = dest;
+  add_dirty(c->area);
 }
 
 // Catty paletty! (and some garbage)
@@ -185,8 +204,11 @@ planar_image * draw_text(char * text, int line, bool fixedWidth, bool fixedHeigh
 
 planar_image * background;
 void * demo(void * args) {
+
+  configure_draw(1); // 1 bpp planes
+
   composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
-  composable * fill = add_composable(root, new_composable(compose_fill_planar, root->from, root->to));
+  composable * fill = add_composable(root, new_composable(compose_fill_planar, root->area.from, root->area.to));
   fill->color = 0b01;
 
   planar_image * txt1 = draw_text("Compose & redraw", 0, false, false);
@@ -198,8 +220,8 @@ void * demo(void * args) {
   text2->image = txt2;
 
   // first a 'manual' composition
-  root->compose(root, background, (area) {root->from, root->to});
-  display_redraw((area) {root->from, root->to});
+  root->compose(root, background, root->area);
+  display_redraw(root->area);
 
   // then through 'dirty'
 

@@ -199,6 +199,16 @@ void * demo(void * args) {
   packed_image * packed_bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
   packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
+  configure_draw(packed_bg->depth); // 4 bpp packed
+  draw_rect(packed_bg->data, packed_bg->size, (coords) {120,95}, (coords) {190,160}, true, 4);
+  draw_rect(packed_bg->data, packed_bg->size, (coords) {120,95}, (coords) {190,160}, false, 6);
+
+  draw_line (packed_bg->data, packed_bg->size, (coords) {10,15}, (coords) {170,170}, 4);
+  draw_line (packed_bg->data, packed_bg->size, (coords) {170,15}, (coords) {10,170}, 4);
+  // rotation in the algorithm draws the same line going back slightly different
+  draw_line (packed_bg->data, packed_bg->size, (coords) {170,170}, (coords) {10,15}, 6);
+  draw_line (packed_bg->data, packed_bg->size, (coords) {10,170}, (coords) {170,15}, 6);
+
   // Mainloop 1
   int i = 0; int j=0;
   int increment_i = 1; int increment_j = 1;
@@ -230,14 +240,18 @@ void * demo(void * args) {
   write_demo_text(background);
 
   // drawing primitives!
-  draw_circle(background->planes[1], background->size, (coords) {40,40}, (coords) {120,100}, false, false, 1);
-  draw_circle(background->planes[2], background->size, (coords) {40,40}, (coords) {120,100}, false, true, 1);
+  configure_draw(1); // 1 bpp planes
+  draw_circle(background->planes[1], background->size, (coords) {80,80}, (coords) {160,140}, false, false, 1);
+  draw_circle(background->planes[3], background->size, (coords) {80,80}, (coords) {160,140}, false, true, 1);
 
-  draw_rect(background->planes[1], background->size, (coords) {80,70}, (coords) {120,100}, false, 1);
-  draw_rect(background->planes[2], background->size, (coords) {80,70}, (coords) {120,100}, false, 1);
+  draw_rect(background->planes[1], background->size, (coords) {120,95}, (coords) {190,160}, false, 1);
+  draw_rect(background->planes[2], background->size, (coords) {120,95}, (coords) {190,160}, true, 1);
 
   draw_line (background->planes[1], background->size, (coords) {10,15}, (coords) {170,170}, 1);
-  // integer rounding differences draws the same line going back slightly different
+  draw_line (background->planes[1], background->size, (coords) {170,15}, (coords) {10,170}, 1);
+  // rotation in the algorithm draws the same line going back slightly different
+  // because we add a different color plane going back, we produce more complex color artifacts
+  // than in the packed version
   draw_line (background->planes[2], background->size, (coords) {170,170}, (coords) {10,15}, 1);
   draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15}, 1);
 

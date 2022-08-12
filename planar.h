@@ -15,9 +15,6 @@
 /** Because it is an exercise in allocation, here's a convenience function for you. */
 planar_image * new_planar_image(int width, int height, int depth);
 
-/** Calculate the width after alignment. */
-uint32_t planar_aligned_width(uint32_t width);
-
 /** Gather 'packed' pixel value from across planar images at location planar_pixel_index. */
 uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index);
 
