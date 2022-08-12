@@ -103,20 +103,20 @@ void * mainloop(void * args) {
     int x = (i % 2) * 8;
     int y = (i / 2) * 5;
     for (int plane=0; plane<4; plane++) {
-      draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+8,y+5}, true, (i >> plane) & 0b1);
+      draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+7,y+4}, true, (i >> plane) & 0b1);
     }
   }
   // toolbox comes below palette, which is 5*8=40 high
   planar_bitblt_full(background, make_img(toolbox, 24), (coords){0,40}, false);
   // checkerboard the toolbox
-  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {16,48}, true, 1);
-  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 8,56}, true, 1);
-  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {16,64}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {15,47}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 7,55}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {15,63}, true, 1);
   // checkerboard the edit window
   for (int i=0;i<64;i+=8) {
     for (int j=0;j<64;j+=8) {
       if (i%16 != j%16) {
-        draw_rect(background->planes[3], background->size, (coords) {16+j,i}, (coords) {16+j+8,i+8}, true, 1);
+        draw_rect(background->planes[3], background->size, (coords) {16+j,i}, (coords) {16+j+7,i+7}, true, 1);
       }
     }
   }
