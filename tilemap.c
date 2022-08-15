@@ -41,7 +41,6 @@ void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords s
        img_to.x = img_from.x + n*map->tile_size;
        img_to.y = img_from.y + map->tile_size;
 
-       printf("Will bitblt tile %d from %d %d to %d %d\n", tile, img_from.x, img_from.y, img_to.x, img_to.y);
        packed_bitblt(bg, map->tileset, img_from, img_to, at, transparent);
      }
    }
