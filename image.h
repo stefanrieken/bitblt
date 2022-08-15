@@ -45,4 +45,6 @@ typedef struct Image {
  */
 uint32_t image_aligned_width(uint32_t width, int bpp);
 
+typedef void BitbltFunc(Image * background, Image * sprite, coords from, coords to, coords at, int transparent);
+
 #endif /* BITBLT_IMAGE_H */

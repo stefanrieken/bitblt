@@ -17,8 +17,8 @@ typedef struct TileMap {
  * TODO: Momentarily focuses on 'packed', but if we can supply a 'planar'
  * bitblt function as a callback, it should work as well.
  *
- * NOTE: 'from' and 'to' are in tiles; 'at' is in pixels!
+ * NOTE: 'from' and 'size' are in tiles; 'at' is in pixels!
  */
-void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords size, coords at, int transparent);
+void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords size, BitbltFunc * blit, coords at, int transparent);
 
 #endif /*BITBLT_TILEMAP_H*/

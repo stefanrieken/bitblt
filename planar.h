@@ -44,4 +44,15 @@ void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords a
 /** As above, but for copying a single plane. */
 void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane);
 
+/** Copy all planes. Fits generic BitbltFunc signature. */
+void planar_bitblt_all(
+   PlanarImage * background,
+   PlanarImage * sprite,
+   coords from,
+   coords to,
+   coords at,
+   int transparent
+  );
+
+
 #endif /* BITBLT_PLANAR_H */

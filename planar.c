@@ -170,3 +170,15 @@ void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords a
 void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane) {
   planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
 }
+
+void planar_bitblt_all(
+   PlanarImage * background,
+   PlanarImage * sprite,
+   coords from,
+   coords to,
+   coords at,
+   int transparent
+  )
+{
+  planar_bitblt(background, sprite, from, to, at, 0, transparent);
+}

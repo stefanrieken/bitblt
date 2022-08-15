@@ -179,7 +179,7 @@ void * demo(void * args) {
   for (int i=0;i<6;i++)
     map->map[i]=i;
 
-  apply_plain_tile_map(map, packed_bg, (coords) {0,0}, map->size, (coords) {100,100}, 0);
+  apply_plain_tile_map(map, packed_bg, (coords) {0,0}, map->size, packed_bitblt, (coords) {100,100}, 0);
   display_redraw(all);
 
   // Mainloop 1
@@ -227,6 +227,10 @@ void * demo(void * args) {
   // than in the packed version
   draw_line (background->planes[2], background->size, (coords) {170,170}, (coords) {10,15}, 1);
   draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15}, 1);
+
+  map->tileset = color_cat; // switch to planar image
+  apply_plain_tile_map(map, background, (coords) {0,0}, map->size, planar_bitblt_all, (coords) {100,100}, 0);
+  display_redraw(all);
 
   // log evidence to file
   write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);

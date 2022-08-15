@@ -9,9 +9,9 @@
  * TODO: Momentarily focuses on 'packed', but if we can supply a 'planar'
  * bitblt function as a callback, it should work as well.
  *
- * NOTE: 'from' and 'to' are in tiles; 'at' is in pixels!
+ * NOTE: 'from' and 'size' are in tiles; 'at' is in pixels!
  */
-void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords size, coords at, int transparent) {
+void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords size, BitbltFunc * blit, coords at, int transparent) {
    coords img_from;
    coords img_to;
 
@@ -41,7 +41,7 @@ void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords s
        img_to.x = img_from.x + n*map->tile_size;
        img_to.y = img_from.y + map->tile_size;
 
-       packed_bitblt(bg, map->tileset, img_from, img_to, at, transparent);
+       blit(bg, map->tileset, img_from, img_to, at, transparent);
      }
    }
 }
