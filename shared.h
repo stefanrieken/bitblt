@@ -1,43 +1,27 @@
 #ifndef BITBLT_SHARED_H
 #define BITBLT_SHARED_H
 
-#include <stdint.h>
-
-#define WORD_SIZE 32
-#define WORD_T uint32_t
-
-// for calculating division and remainders by bitshifting and masking
-// e.g. word size=8; division by 8 = shift right by
-#define WORD(x) ((x) >> 5)
-#define BIT(x)  ((x) & (WORD_SIZE-1))
-typedef struct coords {
-  int x;
-  int y;
-} coords;
-
-typedef struct area {
-  coords from;
-  coords to;
-} area;
+#include "display/display.h"
 
 /**
- * 'Abstract class' for image,
- * as well as their 'implementation' aliases,
- * combined using a union.
+ * Common demo data,structs and callbacks.
  */
-typedef struct image {
-  union {
-    WORD_T ** planes; // for planar images
-    WORD_T * data; // for packed images
-  };
-  coords size;
-  int depth;
-} image, planar_image, packed_image;
+
+typedef void DrawEventCallback(coords from, coords to);
+
+ UserEventCallback * delegate_draw_callback(DrawEventCallback * draw_cb);
+
+ /**
+  * Catty paletty! (as well as some badly defined colors)
+  */
+extern uint8_t palette[];
 
 /**
- * Calculate with of image line after word alignment.
- * Use 1bpp to calculate for a planar image plane.
+ * Make a simple 1-bit image.
+ * Align into the first byte of the word.
+ * Since we're little-endian, that's actually the bottom byte.
  */
-uint32_t image_aligned_width(uint32_t width, int bpp);
+PlanarImage * make_img(uint16_t * rawdata, int height);
+void draw_text(PlanarImage * on, char * text, int line, bool fixedWidth, bool fixedHeight);
 
 #endif /* BITBLT_SHARED_H */

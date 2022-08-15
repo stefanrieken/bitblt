@@ -1,20 +1,35 @@
+#ifndef BITBLT_DISPLAY_H
+#define BITBLT_DISPLAY_H
+
 #include <pthread.h>
 #include <stdbool.h>
-#include "../shared.h"
+#include "../image.h"
 #include "../planar.h"
 #include "../packed.h"
 
-typedef struct display_data {
-  planar_image * planar_display;
-  packed_image * packed_display;
+/**
+ * Simple struct to allow both library user and display implementation
+ * to keep track of all differnt parts of the display state.
+ */
+typedef struct DisplayData {
+  PlanarImage * planar_display;
+  PackedImage * packed_display;
   uint8_t * palette;
   unsigned int scale; // goes on top of built-in scale
   bool packed;
   bool display_finished;
-} display_data;
+} DisplayData;
 
-typedef void drawing_cb(coords from, coords to);
+typedef enum UserEvent {
+  POINTER_DOWN,
+  POINTER_UP,
+  POINTER_MOVE
+} UserEvent;
 
-void display_init(int argc, char ** argv, display_data * screen_data, drawing_cb * draw_cb);
+typedef void UserEventCallback(UserEvent event, coords where);
+
+void display_init(int argc, char ** argv, DisplayData * screen_data, UserEventCallback * event_cb);
 void display_runloop(pthread_t worker_thread);
 void display_redraw(area a);
+
+#endif /* BITBLT_DISPLAY_H */

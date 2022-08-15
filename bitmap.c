@@ -109,7 +109,7 @@ static void expect(char * what, int expected, int got) {
 }
 
 // Returns the packed image; also allocates and fills the pallette
-packed_image * read_bitmap(const char * filename, uint8_t ** palette) {
+PackedImage * read_bitmap(const char * filename, uint8_t ** palette) {
 
   FILE * file = fopen(filename, "rb");
   // main header
@@ -156,7 +156,7 @@ packed_image * read_bitmap(const char * filename, uint8_t ** palette) {
   uint32_t packed_width_aligned = image_aligned_width(width, bpp);
   uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
 
-  packed_image * result = malloc(sizeof(packed_image));
+  PackedImage * result = malloc(sizeof(PackedImage));
   result->depth = bpp;
   result->size.x = width;
   result->size.y = height;

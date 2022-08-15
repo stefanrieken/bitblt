@@ -12,5 +12,5 @@
  * fixedWidth: character width is fixed (to 6); otherwise it is either 6 or 4
  * fixedHeight: do not stretch characters with descenders, fixing height to 6 (otherwise it is 6 or 8)
  */
-planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight);
-void render_char(planar_image * image, char ch, int ny, bool fixedWidth, bool fixedHeight);
+PlanarImage * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight);
+void render_char(PlanarImage * image, char ch, int ny, bool fixedWidth, bool fixedHeight);

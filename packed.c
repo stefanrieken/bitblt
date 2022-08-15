@@ -39,8 +39,8 @@ Blitting:
 #include "shared.h"
 #include "planar.h"
 
-packed_image * to_packed_image(uint32_t * data, int width, int height, int depth) {
-  packed_image * image = malloc(sizeof(packed_image));
+PackedImage * to_packed_image(uint32_t * data, int width, int height, int depth) {
+  PackedImage * image = malloc(sizeof(PackedImage));
   image->data = data;
   image->size.x = width;
   image->size.y = height;
@@ -48,7 +48,7 @@ packed_image * to_packed_image(uint32_t * data, int width, int height, int depth
   return image;
 }
 
-packed_image * new_packed_image(int width, int height, int depth) {
+PackedImage * new_packed_image(int width, int height, int depth) {
   uint32_t * data = malloc(sizeof(uint32_t) * image_aligned_width(width, depth) * height);
   return to_packed_image(data, width, height, depth);
 }
@@ -56,12 +56,12 @@ packed_image * new_packed_image(int width, int height, int depth) {
 /**
  * Convert a packed-pixel image into a set of planar images.
  */
-planar_image * unpack(packed_image * image) {
+PlanarImage * unpack(PackedImage * image) {
 
   uint32_t planar_width_aligned = image_aligned_width(image->size.x, 1);
   uint32_t packed_width_aligned = image_aligned_width(image->size.x, image->depth);
 
-  planar_image * result = new_planar_image(image->size.x, image->size.y, image->depth);
+  PlanarImage * result = new_planar_image(image->size.x, image->size.y, image->depth);
 
   for (int i=0; i< image->size.y; i++) {
     for (int j=0; j<image->size.x; j++) {
@@ -126,8 +126,8 @@ static inline uint32_t make_mask(uint32_t data, uint32_t mask_pattern, uint8_t b
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
  */
 void packed_bitblt(
-    packed_image * background,
-    packed_image * sprite,
+    PackedImage * background,
+    PackedImage * sprite,
     coords from,
     coords to,
     coords at,
@@ -191,6 +191,6 @@ void packed_bitblt(
   }
 }
 
-void packed_bitblt_full(packed_image * background, packed_image * sprite, coords at, int transparent) {
+void packed_bitblt_full(PackedImage * background, PackedImage * sprite, coords at, int transparent) {
   packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, transparent);
 }

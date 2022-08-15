@@ -9,22 +9,22 @@
 #include "font.h"
 #include "display/display.h"
 
-struct composable;
-typedef void compose_cb (struct composable * c, image * on, area a);
+struct Composable;
+typedef void ComposeCallback (struct Composable * c, Image * on, area a);
 
-typedef struct composable {
+typedef struct Composable {
   area area;
 
-  compose_cb * compose;
+  ComposeCallback * compose;
   union {
-    struct composable ** nodes; // composite node, effectively always renders 'on' a root display canvas
-    image * image; // one form of leaf data; render on 'on' by bitblt
+    struct Composable ** nodes; // composite node, effectively always renders 'on' a root display canvas
+    Image * image; // one form of leaf data; render on 'on' by bitblt
     void * data;   // another (abstract) form; may be e.g. a tilemap
     int color;
   };
   int num_nodes;
   int transparent; // selects transparency color; -1 for none (if transparent, we can't assume other objects are hidden behind)
-} composable;
+} Composable;
 
 static inline
 bool overlaps (area a, area b) {
@@ -33,9 +33,9 @@ bool overlaps (area a, area b) {
          (a.from.y < b.to.y && b.from.y < a.to.y);
 }
 
-void compose_tree (composable * tree, image * on, area dirty) {
+void compose_tree (Composable * tree, Image * on, area dirty) {
   for (int i=0;i<tree->num_nodes;i++) {
-    composable * node = tree->nodes[i];
+    Composable * node = tree->nodes[i];
     if (overlaps(node->area, dirty)) {
       // notice that we keep drawing on the original background
       node->compose(node, on, dirty);
@@ -43,7 +43,7 @@ void compose_tree (composable * tree, image * on, area dirty) {
   }
 }
 
-void compose_packed(composable * packed, packed_image * on, area dirty) {
+void compose_packed(Composable * packed, PackedImage * on, area dirty) {
   // N.b.:
   // - We assume we have at least some overlap with the dirty area,
   //   and do not presently use it to refine our call to bitblt
@@ -57,7 +57,7 @@ void compose_packed(composable * packed, packed_image * on, area dirty) {
   packed_bitblt(on, packed->image, (coords){0,0}, packed->image->size, packed->area.from, packed->transparent);
 }
 
-void compose_planar(composable * planar, planar_image * on, area dirty) {
+void compose_planar(Composable * planar, PlanarImage * on, area dirty) {
   // N.b.:
   // - We assume we have at least some overlap with the dirty area,
   //   and do not presently use it to refine our call to bitblt
@@ -73,21 +73,21 @@ void compose_planar(composable * planar, planar_image * on, area dirty) {
 
 // A simple background color painter.
 // Optimized by looking at the dirty area (for a change).
-void compose_fill_planar(composable * fill, planar_image * on, area dirty) {
+void compose_fill_planar(Composable * fill, PlanarImage * on, area dirty) {
   for (int i=0;i<on->depth;i++) {
     draw_rect(on->planes[i], on->size, dirty.from, dirty.to, true, (fill->color >> i) & 0b01);
   }
 }
 
 // This one is presently just a teaser for the imagination
-void compose_tilemap(composable * tilemap, image * on, area a) {
+void compose_tilemap(Composable * tilemap, Image * on, area a) {
 }
 
 
 
 static inline
-composable * new_composable(compose_cb * cb, coords from, coords to) {
-  composable * result = calloc(sizeof(composable), 1);
+Composable * new_composable(ComposeCallback * cb, coords from, coords to) {
+  Composable * result = calloc(sizeof(Composable), 1);
   result->compose = cb;
   result->area.from = from;
   result->area.to = to;
@@ -95,8 +95,8 @@ composable * new_composable(compose_cb * cb, coords from, coords to) {
 }
 
 static inline
-composable * add_composable(composable * tree, composable * node) {
-  tree->nodes = realloc(tree->nodes, sizeof(composable *) * (tree->num_nodes+1));
+Composable * add_composable(Composable * tree, Composable * node) {
+  tree->nodes = realloc(tree->nodes, sizeof(Composable *) * (tree->num_nodes+1));
   tree->nodes[tree->num_nodes] = node;
   tree->num_nodes++;
   return node;
@@ -151,14 +151,14 @@ void add_dirty(area d) {
     num_dirty++;
   }
 }
-void recompose_dirty(composable * root, image * background) {
+void recompose_dirty(Composable * root, Image * background) {
   for (int i=0; i<num_dirty; i++) {
     root->compose(root, background, dirty[i]);
     display_redraw(dirty[i]);
   }
 }
 
-void move(composable * c, coords dest) {
+void move(Composable * c, coords dest) {
   add_dirty(c->area);
   c->area.to.x = (c->area.to.x - c->area.from.x) + dest.x;
   c->area.to.y = (c->area.to.y - c->area.from.y) + dest.y;
@@ -166,35 +166,11 @@ void move(composable * c, coords dest) {
   add_dirty(c->area);
 }
 
-// Catty paletty! (and some garbage)
-uint8_t palette[] = {
-	0x00, 0x00, 0x00, // black (and / or transparent!)
-	0xFF, 0xFF, 0xFF, // white
-
-	0x00, 0xFF, 0x00,
-	0x20, 0xAA, 0xCA, // hair
-	0x89, 0x75, 0xFF, // ears
-
-	0x00, 0x88, 0x00, // text
-	0x00, 0x00, 0x88,
-	0x61, 0x24, 0xFF, // mouth
-	0x88, 0x88, 0x88, // grey
-
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0xCC, 0xCC, 0xCC, // eye white
-
-	0x22, 0x22, 0x22, // eyes
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0x20, 0x10, 0x59 // mouth
-};
-
-planar_image * draw_text(char * text, int line, bool fixedWidth, bool fixedHeight) {
+PlanarImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeight) {
   int stretch = 1;
 
-  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
-  planar_image * result = new_planar_image(txt->size.x, txt->size.y, 4);
+  PlanarImage * txt = render_text(text, stretch, fixedWidth, fixedHeight);
+  PlanarImage * result = new_planar_image(txt->size.x, txt->size.y, 4);
     // copy into these 2 planes to get a green color
   planar_bitblt_plane(result, txt, (coords) {0, 0}, 0);
   planar_bitblt_plane(result, txt, (coords) {0, 0}, 2);
@@ -202,21 +178,21 @@ planar_image * draw_text(char * text, int line, bool fixedWidth, bool fixedHeigh
   return result;
 }
 
-planar_image * background;
+PlanarImage * background;
 void * demo(void * args) {
 
   configure_draw(1); // 1 bpp planes
 
-  composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
-  composable * fill = add_composable(root, new_composable(compose_fill_planar, root->area.from, root->area.to));
+  Composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
+  Composable * fill = add_composable(root, new_composable(compose_fill_planar, root->area.from, root->area.to));
   fill->color = 0b01;
 
-  planar_image * txt1 = draw_text("Compose & redraw", 0, false, false);
-  composable * text1 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
+  PlanarImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
+  Composable * text1 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
   text1->image = txt1;
 
-  planar_image * txt2 = draw_text("objects!", 0, false, false);
-  composable * text2 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
+  PlanarImage * txt2 = draw_text2("objects!", 0, false, false);
+  Composable * text2 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
   text2->image = txt2;
 
   // first a 'manual' composition
@@ -236,7 +212,7 @@ void * demo(void * args) {
 }
 
 int main (int argc, char ** argv) {
-  display_data * dd = malloc(sizeof(display_data));
+  DisplayData * dd = malloc(sizeof(DisplayData));
   background = new_planar_image(200, 128, 4);
   dd->planar_display = background;
   dd->palette = palette;

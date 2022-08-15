@@ -11,6 +11,7 @@
 #include "display/display.h"
 #include "font.h"
 #include "draw.h"
+#include "shared.h"
 
 // - 2x3 8x8 tool selector
 // (so image size is 16x24)
@@ -44,54 +45,7 @@ uint16_t toolbox[] = {
   0b0000000000000000,
 };
 
-// Catty paletty! (and some garbage)
-uint8_t palette[] = {
-	0x00, 0x00, 0x00, // black (and / or transparent!)
-	0xFF, 0xFF, 0xFF, // white
-
-	0x00, 0xFF, 0x00,
-	0x20, 0xAA, 0xCA, // hair
-	0x89, 0x75, 0xFF, // ears
-
-	0x00, 0x88, 0x00, // text
-	0x00, 0x00, 0x88,
-	0x61, 0x24, 0xFF, // mouth
-	0x88, 0x88, 0x88, // grey
-
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0xCC, 0xCC, 0xCC, // eye white
-
-	0x22, 0x22, 0x22, // eyes
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0x20, 0x10, 0x59 // mouth
-};
-
-/**
- * Make a simple 1-bit image.
- * Align into the first byte of the word.
- * Since we're little-endian, that's actually the bottom byte.
- */
-planar_image * make_img(uint16_t * rawdata, int height) {
-  planar_image * image = new_planar_image(16, height, 1);
-  for(int i = 0; i < height; i++) {
-    image->planes[0][i] = rawdata[i] << 16; // shove into MSB
-  }
-  return image;
-}
-
-void draw_text(planar_image * on, char * text, int line, bool fixedWidth, bool fixedHeight) {
-  int stretch = 1;
-
-  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
-  // copy into these 2 planes to get a green color
-  planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 0);
-  planar_bitblt_plane(on, txt, (coords) {0, line*20+10}, 2);
-  free(txt);
-}
-
-planar_image * background;
+PlanarImage * background;
 
 void * mainloop(void * args) {
 
@@ -149,7 +103,7 @@ void draw_cb(coords from, coords to) {
 }
 
 int main (int argc, char ** argv) {
-  display_data * dd = malloc(sizeof(display_data));
+  DisplayData * dd = malloc(sizeof(DisplayData));
 
   // using 80x64 for planned device compatibility (with 160x128; pygamer / meowbit)
   // - 64x64 editor window
@@ -161,7 +115,7 @@ int main (int argc, char ** argv) {
   dd->palette = palette;
   dd->scale = 2; // comes on top of any default scaling
 
-  display_init(argc, argv, dd, draw_cb);
+  display_init(argc, argv, dd, delegate_draw_callback(draw_cb));
 
   pthread_t worker;
   pthread_create(&worker, NULL, mainloop, dd);

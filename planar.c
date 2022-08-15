@@ -30,8 +30,8 @@ OR (background.layer2, sprite.layer2);
 
 #include "planar.h"
 
-planar_image * new_planar_image(int width, int height, int depth) {
-  planar_image * result = malloc(sizeof(planar_image));
+PlanarImage * new_planar_image(int width, int height, int depth) {
+  PlanarImage * result = malloc(sizeof(PlanarImage));
   result->size.x = width;
   result->size.y = height;
   result->depth = depth;
@@ -45,7 +45,7 @@ planar_image * new_planar_image(int width, int height, int depth) {
   return result;
 }
 
-uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
+uint8_t gather_pixel(PlanarImage * image, uint32_t planar_pixel_index) {
   uint8_t pixel = 0;
   uint32_t planar_word = planar_pixel_index / 32; // 32 pixels per word
   uint32_t planar_bit  = planar_pixel_index % 32; // 0 .. 31
@@ -61,7 +61,7 @@ uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index) {
 /**
  * Convert a set of planar images into a packed-pixel image.
  */
-uint32_t * pack(planar_image * image) {
+uint32_t * pack(PlanarImage * image) {
 
   uint32_t image_width_aligned = image_aligned_width(image->size.x, 1);
 
@@ -89,8 +89,8 @@ uint32_t * pack(planar_image * image) {
 }
 
 void planar_bitblt(
-   planar_image * background,
-   planar_image * sprite,
+   PlanarImage * background,
+   PlanarImage * sprite,
    coords from,
    coords to,
    coords at,
@@ -163,10 +163,10 @@ void planar_bitblt(
   }
 }
 
-void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, int transparent) {
+void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent) {
   planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, transparent);
 }
 
-void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane) {
+void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane) {
   planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
 }

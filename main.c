@@ -11,6 +11,7 @@
 #include "display/display.h"
 #include "font.h"
 #include "draw.h"
+#include "shared.h"
 
 uint16_t cat[] = {
   0b0110000000000000,
@@ -97,63 +98,15 @@ uint16_t cat_eyes[] = {
   0b0000000000000000
 };
 
-
-// Catty paletty! (and some garbage)
-uint8_t palette[] = {
-	0x00, 0x00, 0x00, // black (and / or transparent!)
-	0xFF, 0xFF, 0xFF, // white
-
-	0x00, 0xFF, 0x00,
-	0x20, 0xAA, 0xCA, // hair
-	0x89, 0x75, 0xFF, // ears
-
-	0x00, 0x88, 0x00, // text
-	0x00, 0x00, 0x88,
-	0x61, 0x24, 0xFF, // mouth
-	0x88, 0x88, 0x88, // grey
-
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0xCC, 0xCC, 0xCC, // eye white
-
-	0x22, 0x22, 0x22, // eyes
-	0x88, 0x88, 0x00,
-	0x00, 0x88, 0x88,
-	0x20, 0x10, 0x59 // mouth
-};
-
-/**
- * Make a simple 1-bit image.
- * Align into the first byte of the word.
- * Since we're little-endian, that's actually the bottom byte.
- */
-planar_image * make_img(uint16_t * rawdata, int height) {
-  planar_image * image = new_planar_image(16, height, 1);
-  for(int i = 0; i < height; i++) {
-    image->planes[0][i] = rawdata[i] << 16; // shove into MSB
-  }
-  return image;
-}
-
-void draw_text(planar_image * on, char * text, int line, bool fixedWidth, bool fixedHeight) {
-  int stretch = 1;
-
-  planar_image * txt = render_text(text, stretch, fixedWidth, fixedHeight);
-  // copy into these 2 planes to get a green color
-  planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 0);
-  planar_bitblt_plane(on, txt, (coords) {1, line*20+10}, 2);
-  free(txt);
-}
-
 // write directly to display
-void write_intro_text(planar_image * on) {
+void write_intro_text(PlanarImage * on) {
   draw_text(on, "This screen and the cat show off packed bitblt,", 1, false, true);
   draw_text(on, "including some vertical clipping of the cat's body.", 2, false, true);
   draw_text(on, "The next screen shows the same in planar bitblt.", 3, false, true);
-  draw_text(on, "You can also draw some pixels there.", 4, false, true);
+  draw_text(on, "During animation you can also draw on both screens.", 4, false, true);
 }
 
-void write_demo_text(planar_image * on) {
+void write_demo_text(PlanarImage * on) {
   bool fixed = false;
   char * txt = "The quick brown fox jumps over the lazy dog.";
 
@@ -168,22 +121,24 @@ void write_demo_text(planar_image * on) {
   draw_text(on, txt, 5, true, false);
 }
 
-planar_image * background;
+DisplayData * dd;
+PlanarImage * background;
+PackedImage * packed_bg;
 area all;
 
 void * demo(void * args) {
-  display_data * dd = (display_data *) args;
-  planar_image * display = dd->planar_display;
+  //dd = (DisplayData *) args;
+  PlanarImage * display = dd->planar_display;
 
-  // planar_image *
+  // PlanarImage *
   background = new_planar_image(310, 200, 4);
   all = (area) {(coords) {0,0}, (coords) {background->size.x, background->size.y}};
 
-  planar_image * img_cat = make_img(cat, 24);
-  planar_image * img_cat2 = make_img(cat_color2, 24);
-  planar_image * img_cat3 = make_img(cat_eyes, 24);
+  PlanarImage * img_cat = make_img(cat, 24);
+  PlanarImage * img_cat2 = make_img(cat_color2, 24);
+  PlanarImage * img_cat3 = make_img(cat_eyes, 24);
 
-  planar_image * color_cat = new_planar_image(16, 24, 4);
+  PlanarImage * color_cat = new_planar_image(16, 24, 4);
   // copy in individual color layers
   planar_bitblt_plane(color_cat, img_cat , (coords) {0,0}, 0);
   planar_bitblt_plane(color_cat, img_cat , (coords) {0,0}, 1);
@@ -195,9 +150,9 @@ void * demo(void * args) {
 
   write_intro_text(background);
 
-  packed_image * packed_disp = dd->packed_display;
-  packed_image * packed_bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
-  packed_image * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
+  PackedImage * packed_disp = dd->packed_display;
+  packed_bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
+  PackedImage * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
   configure_draw(packed_bg->depth); // 4 bpp packed
   draw_rect(packed_bg->data, packed_bg->size, (coords) {120,95}, (coords) {190,160}, true, 4);
@@ -290,26 +245,30 @@ void * demo(void * args) {
   write_bitmap("demo_text_with_kitty.bmp", palette, pack(display), background->size.x, background->size.y, background->depth);
 
   uint8_t * palette_read;
-  packed_image * image_read = read_bitmap("demo_text_with_kitty.bmp", &palette_read);
+  PackedImage * image_read = read_bitmap("demo_text_with_kitty.bmp", &palette_read);
   write_bitmap("i_read_this_you_know.bmp", palette_read, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
 
   return 0;
 }
 
 void draw_cb(coords from, coords to) {
-  draw_line(background->planes[0], background->size, from, to, 1);
+  if (dd->packed) {
+    draw_line(packed_bg->data, background->size, from, to, 1);
+  } else {
+    draw_line(background->planes[0], background->size, from, to, 1);
+  }
   display_redraw(all);
 }
 
 int main (int argc, char ** argv) {
-  display_data * dd = malloc(sizeof(display_data));
+  dd = malloc(sizeof(DisplayData));
 
   dd->planar_display = new_planar_image(310, 200, 4);
   dd->packed_display = new_packed_image(310, 200, 4);
   dd->palette = palette;
   dd->scale = 1;
 
-  display_init(argc, argv, dd, draw_cb);
+  display_init(argc, argv, dd, delegate_draw_callback(draw_cb));
 
   pthread_t worker;
   pthread_create(&worker, NULL, demo, dd);

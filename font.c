@@ -18,7 +18,7 @@ uint32_t chars_encoded[] = {
 
 };
 
-planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight) {
+PlanarImage * render_text (char * data, int ny, bool fixedWidth, bool fixedHeight) {
 	// Allocate a buffer that is as wide as our max rendering.
 	// That max spacing is 6. (It may be reduced to 4 with variable width.)
 	int text_width = strlen(data);
@@ -28,10 +28,10 @@ planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeig
   // Base char height is 6; when descenders are encoded, it gets extended to 8
 	int text_height = 8*ny;
 
-	planar_image * rendered = new_planar_image(text_width, text_height, 1);
+	PlanarImage * rendered = new_planar_image(text_width, text_height, 1);
 
   // the calculations expect a word size buffer
-	planar_image * char_placeholder = new_planar_image(WORD_SIZE, text_height, 1);
+	PlanarImage * char_placeholder = new_planar_image(WORD_SIZE, text_height, 1);
 
 	int offset = 0;
 	for (int i=0; i < strlen(data); i++) {
@@ -50,7 +50,7 @@ planar_image * render_text (char * data, int ny, bool fixedWidth, bool fixedHeig
 	return rendered;
 }
 
-void render_char(planar_image * image, char ch, int ny, bool fixedWidth, bool fixedHeight) {
+void render_char(PlanarImage * image, char ch, int ny, bool fixedWidth, bool fixedHeight) {
 	if (ch < 32) {
 		// control characters; return empty image
 		for (int i=0; i<((image->size.x/WORD_SIZE)*image->size.y);i++) {

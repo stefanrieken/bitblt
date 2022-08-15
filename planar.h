@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "shared.h"
+#include "image.h"
 
 /**
  * Planar images are multiple separate images,
@@ -13,13 +13,13 @@
  */
 
 /** Because it is an exercise in allocation, here's a convenience function for you. */
-planar_image * new_planar_image(int width, int height, int depth);
+PlanarImage * new_planar_image(int width, int height, int depth);
 
 /** Gather 'packed' pixel value from across planar images at location planar_pixel_index. */
-uint8_t gather_pixel(planar_image * image, uint32_t planar_pixel_index);
+uint8_t gather_pixel(PlanarImage * image, uint32_t planar_pixel_index);
 
 /** Convert to packed image */
-uint32_t * pack(planar_image * image);
+uint32_t * pack(PlanarImage * image);
 
 /**
  * Place planar sprite at planar background on location 'at'.
@@ -29,8 +29,8 @@ uint32_t * pack(planar_image * image);
  * you might want to try bitblt'ing to a smaller image first.
  */
 void planar_bitblt(
-   planar_image * background,
-   planar_image * sprite,
+   PlanarImage * background,
+   PlanarImage * sprite,
    coords from,
    coords to,
    coords at,
@@ -39,9 +39,9 @@ void planar_bitblt(
   );
 
 /** Convenience function that uses defaults for from, to (whole sprite) and from_plane (0). */
-void planar_bitblt_full(planar_image * background, planar_image * sprite, coords at, int transparent);
+void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent);
 
 /** As above, but for copying a single plane. */
-void planar_bitblt_plane(planar_image * background, planar_image * sprite, coords at, int from_plane);
+void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane);
 
 #endif /* BITBLT_PLANAR_H */

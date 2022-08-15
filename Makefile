@@ -1,4 +1,4 @@
-LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o
+LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o image.o
 
 all: demo-none demo-gtk spredit compose
 
@@ -13,16 +13,16 @@ display/display_gtk.o: display/display_gtk.c
 libbitblt.a: $(LIBOBJECTS)
 	ar -rcs $@ $^
 
-demo-gtk: display/display_gtk.o main.o libbitblt.a
+demo-gtk: display/display_gtk.o shared.o main.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
-demo-none: display/display_none.o main.o libbitblt.a
+demo-none: display/display_none.o shared.o main.o libbitblt.a
 	gcc -pthread $^ -o $@
 
-spredit: display/display_gtk.o spredit.o libbitblt.a
+spredit: display/display_gtk.o shared.o spredit.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
-compose: display/display_gtk.o compose.o libbitblt.a
+compose: display/display_gtk.o shared.o compose.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
 clean:
