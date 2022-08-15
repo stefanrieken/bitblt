@@ -1,4 +1,4 @@
-LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o image.o
+LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o image.o tilemap.o
 
 all: demo-none demo-gtk spredit compose
 
@@ -26,4 +26,4 @@ compose: display/display_gtk.o shared.o compose.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
 clean:
-	rm -f *.bmp *.a *.o display/*.o demo-gtk demo-none
+	rm -f *.bmp *.a *.o display/*.o demo-gtk demo-none spredit compose

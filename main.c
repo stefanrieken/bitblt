@@ -11,6 +11,7 @@
 #include "display/display.h"
 #include "font.h"
 #include "draw.h"
+#include "tilemap.h"
 #include "shared.h"
 
 uint16_t cat[] = {
@@ -163,6 +164,23 @@ void * demo(void * args) {
   // rotation in the algorithm draws the same line going back slightly different
   draw_line (packed_bg->data, packed_bg->size, (coords) {170,170}, (coords) {10,15}, 6);
   draw_line (packed_bg->data, packed_bg->size, (coords) {10,170}, (coords) {170,15}, 6);
+
+
+  // Tile map short demo
+  TileMap * map = malloc (sizeof(TileMap));
+  map->tileset = packed_cat;
+  map->tile_size = 8;
+  map->map = malloc (sizeof(uint8_t) * 6);
+  map->size = (coords) {2,3};
+  map->mask=0xFF;
+
+  // because we want 'all' the tiles in the same order,
+  // the maps is easily filled like so:
+  for (int i=0;i<6;i++)
+    map->map[i]=i;
+
+  apply_plain_tile_map(map, packed_bg, (coords) {0,0}, map->size, (coords) {100,100}, 0);
+  display_redraw(all);
 
   // Mainloop 1
   int i = 0; int j=0;
