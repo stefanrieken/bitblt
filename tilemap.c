@@ -30,9 +30,9 @@ void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords s
        while (
          // next map entry at x is next tile in sequence...
          j+n < map->size.x &&
-         (map->map[i*map->tile_size+j+n] & map->mask) == tile+n &&
+         (map->map[i*map->size.x+j+n] & map->mask) == tile+n &&
          // and sequence does not cross edge of image
-         map->tileset->size.x % (from.x + (n*map->tile_size)) != 0
+         map->tileset->size.x != ((j+n)*map->tile_size)
        ) {
          // optimize: include next x entry in the blit.
          n++;
