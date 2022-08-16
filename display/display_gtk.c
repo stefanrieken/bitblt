@@ -143,12 +143,14 @@ void display_init(int argc, char ** argv, DisplayData * screen_data, UserEventCa
 
   _event_cb = event_cb;
 
-  gtk_widget_set_events(GTK_WIDGET(drawing_area),
-    GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
+  if (_event_cb != NULL) {
+    gtk_widget_set_events(GTK_WIDGET(drawing_area),
+      GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
 
-  g_signal_connect(drawing_area, "button-press-event", G_CALLBACK(pressed_cb), NULL);
-  g_signal_connect(drawing_area, "button-release-event", G_CALLBACK(released_cb), NULL);
-  g_signal_connect (G_OBJECT (drawing_area), "motion-notify-event",G_CALLBACK (motion_cb), NULL);
+    g_signal_connect(drawing_area, "button-press-event", G_CALLBACK(pressed_cb), NULL);
+    g_signal_connect(drawing_area, "button-release-event", G_CALLBACK(released_cb), NULL);
+    g_signal_connect (G_OBJECT (drawing_area), "motion-notify-event",G_CALLBACK (motion_cb), NULL);
+  }
 
   gtk_widget_show_all(GTK_WIDGET(window));
 }
