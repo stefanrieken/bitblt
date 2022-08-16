@@ -23,10 +23,10 @@ PlanarImage * render_text (char * data, int ny, bool fixedWidth, bool fixedHeigh
 	// That max spacing is 6. (It may be reduced to 4 with variable width.)
 	int text_width = strlen(data);
 	text_width *= 6;
-	while ((text_width %32) != 0) text_width++;
+	// while ((text_width %32) != 0) text_width++;
 
   // Base char height is 6; when descenders are encoded, it gets extended to 8
-	int text_height = 8*ny;
+	int text_height = (fixedHeight ? 6 : 8) *ny;
 
 	PlanarImage * rendered = new_planar_image(text_width, text_height, 1);
 

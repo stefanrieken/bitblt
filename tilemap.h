@@ -5,8 +5,8 @@
 
 typedef struct TileMap {
   Image * tileset; //contains size; can always change this pointer to swap out tile set
-  int tile_size; // e.g. 8; might also support non-square?
-  coords size;
+  coords tile_size; // e.g. 8x8
+  coords map_size;
   uint8_t * map;
   uint8_t mask; // which portion of the tile is a tile, and which is instructional data?
 } TileMap;
@@ -20,5 +20,13 @@ typedef struct TileMap {
  * NOTE: 'from' and 'size' are in tiles; 'at' is in pixels!
  */
 void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords size, BitbltFunc * blit, coords at, int transparent);
+
+/**
+ * Perform square collision detection with tilemap.
+ * Assumes tile MSB value of 1 indicates tile is solid.
+ *
+ * Returns the tile number of the first collision found, or -1 if no collision.
+ */
+int overlaps_solid_tile(TileMap * map, coords at, area a);
 
 #endif /*BITBLT_TILEMAP_H*/

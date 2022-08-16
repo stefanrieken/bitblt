@@ -153,10 +153,10 @@ void packed_bitblt(
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
 
   for(int i = from.y; i < to.y; i++) {
-    for (int j = 0; j < to_width_aligned / pixels_per_word; j++) {
+    for (int j = from.x; j < to_width_aligned / pixels_per_word; j++) {
       // if y out of bounds, we have nothing to do here
-      if (at.y+i < 0) continue;
-      if (at.y+i >= background->size.y) continue;
+      if ((at.y-from.y)+i < 0) continue;
+      if ((at.y-from.y)+i >= background->size.y) continue;
 
       int spr_word_idx = (i * (sprite_width_aligned/pixels_per_word)) + j;
       uint32_t spr_word = sprite->data[spr_word_idx];
@@ -174,16 +174,16 @@ void packed_bitblt(
       }
 
       // Merge sprite into background by ANDing with calculated mask and ORing with sprite data
-      int bg_word_idx = ((at.y+i) * (background_width_aligned/pixels_per_word)) + (at.x+j);
+      int bg_word_idx = (((at.y-from.y)+i) * (background_width_aligned/pixels_per_word)) + ((at.x-from.x)+j);
 
       // Make up for any offset by shifting into two consecutive words; word 0 first
-      if (at.x+j >= 0 && at.x+j < background_width_aligned / pixels_per_word) {
+      if ((at.x-from.x)+j >= 0 && (at.x-from.x)+j < background_width_aligned / pixels_per_word) {
         uint32_t * bg_word0 = &background->data[bg_word_idx];
         *bg_word0 = (*bg_word0 & ~(mask >> offset)) | (spr_word >> offset);
       }
 
       // blt any spillover into the next word
-      if (offset != 0 && at.x+j+1 >= 0 && at.x+j+1 < background_width_aligned / pixels_per_word) {
+      if (offset != 0 && (at.x-from.x)+j+1 >= 0 && (at.x-from.x)+j+1 < background_width_aligned / pixels_per_word) {
         uint32_t * bg_word1 = &background->data[bg_word_idx+1];
         *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
       }

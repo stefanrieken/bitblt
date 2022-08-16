@@ -88,6 +88,10 @@ uint32_t * pack(PlanarImage * image) {
   return result;
 }
 
+// TODO calculate:
+// - at_offset (check: this is the variable 'offset')
+// - from_offset (todo: now 'from' only works properly on word boundaries)
+// - relative_offset (maybe: if it means we can just rotate the bulk of a line's data once)
 void planar_bitblt(
    PlanarImage * background,
    PlanarImage * sprite,
@@ -133,9 +137,9 @@ void planar_bitblt(
       }
 
       // Calculate background position
-      uint32_t bg_pixel_idx = ((i+at.y)*background_width_aligned) + j+at.x;
+      // uint32_t bg_pixel_idx = ((i+at.y)*background_width_aligned) + j+at.x;
+      uint32_t bg_pixel_idx = (((i-from.y)+at.y)*background_width_aligned) + (j-from.x)+at.x;
       uint32_t bg_byte_idx = bg_pixel_idx / WORD_SIZE;
-
 
       // check for Y under- & overflow.
       // These are easily skipped because we only blit one row at the time.
@@ -147,13 +151,13 @@ void planar_bitblt(
         uint32_t sprite_word = sprite->planes[n][sprite_word_idx];
         // check for X out of bounds (under- or overflow)
 
-        if(j+at.x>=0 && j+at.x-offset<background->size.x) {
+        if((j-from.x)+at.x>=0 && (j-from.x)+at.x-offset<background->size.x) {
           background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
           // TODO also subject sprite to mask in case of transparent
           background->planes[from_plane+n][bg_byte_idx] |= (sprite_word&mask) >> offset; // add sprite
         }
         // overflow any offset into next, unless X+1 out of bounds
-        if (offset != 0 && j+at.x+WORD_SIZE>=0 && j+at.x+WORD_SIZE-offset<background->size.x) {
+        if (offset != 0 && (j-from.x)+at.x+WORD_SIZE>=0 && (j-from.x)+at.x+WORD_SIZE-offset<background->size.x) {
          background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
          // TODO also subject sprite to mask in case of transparent
          background->planes[from_plane+n][bg_byte_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite

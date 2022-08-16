@@ -169,17 +169,18 @@ void * demo(void * args) {
   // Tile map short demo
   TileMap * map = malloc (sizeof(TileMap));
   map->tileset = packed_cat;
-  map->tile_size = 8;
-  map->map = malloc (sizeof(uint8_t) * 6);
-  map->size = (coords) {2,3};
+  map->tile_size.x = 8;
+  map->tile_size.y = 4; // just for demo purposes, rectangular tiles
+  map->map = malloc (sizeof(uint8_t) * 12);
+  map->map_size = (coords) {2,6};
   map->mask=0xFF;
 
   // because we want 'all' the tiles in the same order,
   // the maps is easily filled like so:
-  for (int i=0;i<6;i++)
+  for (int i=0;i<12;i++)
     map->map[i]=i;
 
-  apply_plain_tile_map(map, packed_bg, (coords) {0,0}, map->size, packed_bitblt, (coords) {100,100}, 0);
+  apply_plain_tile_map(map, packed_bg, (coords) {0,0}, map->map_size, packed_bitblt, (coords) {100,100}, 0);
   display_redraw(all);
 
   // Mainloop 1
@@ -229,7 +230,7 @@ void * demo(void * args) {
   draw_line (background->planes[2], background->size, (coords) {10,170}, (coords) {170,15}, 1);
 
   map->tileset = color_cat; // switch to planar image
-  apply_plain_tile_map(map, background, (coords) {0,0}, map->size, planar_bitblt_all, (coords) {100,100}, 0);
+  apply_plain_tile_map(map, background, (coords) {0,0}, map->map_size, planar_bitblt_all, (coords) {100,100}, 0);
   display_redraw(all);
 
   // log evidence to file
@@ -290,7 +291,7 @@ int main (int argc, char ** argv) {
   dd->palette = palette;
   dd->scale = 1;
 
-  display_init(argc, argv, dd, delegate_draw_callback(draw_cb));
+  display_init(argc, argv, dd, delegate_callbacks(draw_cb, NULL, NULL));
 
   pthread_t worker;
   pthread_create(&worker, NULL, demo, dd);

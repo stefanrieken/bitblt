@@ -8,8 +8,14 @@
  */
 
 typedef void DrawEventCallback(coords from, coords to);
+typedef void ClickEventCallback(coords from, coords to);
+typedef void HoverEventCallback(coords where);
 
- UserEventCallback * delegate_draw_callback(DrawEventCallback * draw_cb);
+ UserEventCallback * delegate_callbacks(
+   DrawEventCallback * draw_cb,
+   ClickEventCallback * click_cb,
+   HoverEventCallback * hover_cb
+ );
 
  /**
   * Catty paletty! (as well as some badly defined colors)

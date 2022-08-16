@@ -29,9 +29,13 @@ uint8_t palette[] = {
  0x20, 0x10, 0x59 // mouth
 };
 
+static coords original;
 static coords previous;
 static area draw_area;
 static DrawEventCallback * _draw_cb;
+static ClickEventCallback * _click_cb;
+static HoverEventCallback * _hover_cb;
+
 /**
  * Interprets pointer up, down, and move into a single draw event.
  * (For now) delegates (only) this event to a user function.
@@ -39,6 +43,8 @@ static DrawEventCallback * _draw_cb;
 void delegate_draw_cb(UserEvent event, coords where) {
 
   if (event  == POINTER_DOWN) {
+    original.x = where.x;
+    original.y = where.y;
     previous.x = where.x;
     previous.y = where.y;
     _draw_cb(previous, previous);
@@ -47,19 +53,32 @@ void delegate_draw_cb(UserEvent event, coords where) {
     // we might want to dynamically (de)activate GDK_POINTER_MOTION_MASK as well
     previous.x=-1;
     previous.y=-1;
+    _click_cb(original, where);
   }
-  if (event == POINTER_MOVE && previous.x != -1) {
-    _draw_cb(previous, where);
-    previous.x = where.x;
-    previous.y = where.y;
+  if (event == POINTER_MOVE) {
+    if (previous.x == -1) {
+      if (_hover_cb != NULL) _hover_cb(where);
+    } else {
+      _draw_cb(previous, where);
+      previous.x = where.x;
+      previous.y = where.y;
+    }
   }
 }
 
+void callback_none(coords from, coords to) {}
+
 /** Call this to set up the delegate draw event with your user function. */
-UserEventCallback * delegate_draw_callback(DrawEventCallback * draw_cb) {
+UserEventCallback * delegate_callbacks(
+  DrawEventCallback * draw_cb,
+  ClickEventCallback * click_cb,
+  HoverEventCallback * hover_cb
+) {
   previous.x=-1;
   previous.y=-1;
-  _draw_cb = draw_cb;
+  _draw_cb = draw_cb == NULL ? callback_none : draw_cb;
+  _click_cb = click_cb == NULL ? callback_none : click_cb;
+  _hover_cb = hover_cb;
   return delegate_draw_cb;
 }
 
