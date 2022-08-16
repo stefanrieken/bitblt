@@ -57,6 +57,7 @@ PackedImage * new_packed_image(int width, int height, int depth) {
  * Convert a packed-pixel image into a set of planar images.
  */
 PlanarImage * unpack(PackedImage * image) {
+  if (image == NULL) return NULL;
 
   uint32_t planar_width_aligned = image_aligned_width(image->size.x, 1);
   uint32_t packed_width_aligned = image_aligned_width(image->size.x, image->depth);

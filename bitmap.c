@@ -104,7 +104,7 @@ uint32_t read_32bit_data(FILE * file) {
 
 static void expect(char * what, int expected, int got) {
   if (expected != got) {
-    printf("Expected value %c for %s; got %c\n", expected, what, got);
+    printf("Expected value %d for %s; got %d\n", expected, what, got);
   }
 }
 
@@ -143,6 +143,78 @@ PackedImage * read_bitmap(const char * filename, uint8_t ** palette) {
   for (int i=0; i<3*num_colors;i++) {
 
     (*palette)[i] = fgetc(file);
+  }
+  // finally, data
+  // NOTE BPM thinks upside down. Can't just invert this loop.
+  // So instead we have set image height negative above!
+  if (height > 0) {
+    printf("Image height was not expressed negative (like we save it); image may be upside down!\n");
+  } else {
+    height = -height;
+  }
+
+  uint32_t packed_width_aligned = image_aligned_width(width, bpp);
+  uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
+
+  PackedImage * result = malloc(sizeof(PackedImage));
+  result->depth = bpp;
+  result->size.x = width;
+  result->size.y = height;
+  result->data = malloc(sizeof(WORD_T) * data_length_words);
+
+  for (int i=0; i<data_length_words; i++) {
+    result->data[i] = read_32bit_data(file);
+  }
+
+  fclose(file);
+
+  return result;
+}
+
+// Returns the packed image; also allocates and fills the pallette
+PackedImage * read_bitmap_nt(const char * filename, uint8_t ** palette) {
+
+  FILE * file = fopen(filename, "rb");
+  if (file == NULL) {
+    printf("file not found\n");
+    return NULL;
+  }
+  // main header
+  expect("identifier", 'B', fgetc(file)); expect("identifier", 'M', fgetc(file));
+  uint32_t file_size = read_32bit(file); // file size: h1 + h2 + size
+  expect("reserved", 0, read_16bit(file)); expect("reserved", 0, read_16bit(file));
+  uint32_t start_of_pixel_array = read_32bit(file); // start of pixel array
+
+  // bitmap info header.
+  expect("header size", 40, read_32bit(file)); // sizeof header
+  uint32_t width = read_32bit(file);
+  int32_t height = (int16_t) read_32bit(file); // To invert the image the right way up!
+  expect("color planes", 1, read_16bit(file)); // # color planes, always 1
+  uint32_t bpp = read_16bit(file);
+  uint32_t num_colors = 2;
+  for (int i=1; i<bpp;i++) num_colors *= 2;
+
+  // further nonsense not required by the old bitmap core header, or us
+  expect("compression", 0, read_32bit(file)); // no compression
+  uint32_t data_length_bytes = read_32bit(file);
+  uint32_t pixels_per_meter_x = read_32bit(file); // pixels per meter?
+  uint32_t pixels_per_meter_y = read_32bit(file); // pixels per meter?
+  expect("num colors", num_colors, read_32bit(file)); // should follow from bpp
+  uint32_t num_important_colors = read_32bit(file); // uhh
+
+  // Color table. The old header implies RGB instead of RGBA
+  // N.b. we actually have to read BGR!
+  // 1bpp, 4bpp, 8bpp are all common; but 2bpp may be rare / unsupported
+  *palette = malloc(sizeof(uint8_t) * 3 * num_colors);
+
+  for (int i=0; i<3*num_colors;i++) {
+
+    (*palette)[i] = fgetc(file);
+  }
+  
+  // alignment
+  for (int i=0; i<start_of_pixel_array - 14-40 - 3*16; i++) {
+    fgetc(file);
   }
   // finally, data
   // NOTE BPM thinks upside down. Can't just invert this loop.

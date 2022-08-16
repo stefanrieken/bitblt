@@ -79,6 +79,11 @@ void * mainloop(void * args) {
       }
     }
   }
+  // or no wait, load in data
+  uint8_t * palette_read;
+  PlanarImage * spritesheet = unpack(read_bitmap_nt("spritesheet.bmp", &palette_read));
+  if (spritesheet != NULL)
+    planar_bitblt_all(background, spritesheet, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
 
   // Copy background to display.
   // Even though drawing is done directly on the background,
