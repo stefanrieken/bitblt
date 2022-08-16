@@ -109,7 +109,7 @@ void write_intro_text(PlanarImage * on) {
 
 void write_demo_text(PlanarImage * on) {
   bool fixed = false;
-  char * txt = "The quick brown fox jumps over the lazy dog.";
+  char * txt = "The quick brown fox jumps over the lazy dog. ";
 
   draw_text(on, txt, 1, false, false);
   draw_text(on, txt, 2, true, false);
@@ -117,7 +117,7 @@ void write_demo_text(PlanarImage * on) {
   txt = "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG!?";
   draw_text(on, txt, 3, true, false);
 
-  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;                    ";
+  txt = "!@#$%^&*()-=_+[]{}()|\\/\":;                     ";
   draw_text(on, txt, 4, false, false);
   draw_text(on, txt, 5, true, false);
 }

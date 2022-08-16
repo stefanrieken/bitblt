@@ -88,10 +88,6 @@ uint32_t * pack(PlanarImage * image) {
   return result;
 }
 
-// TODO calculate:
-// - at_offset (check: this is the variable 'offset')
-// - from_offset (todo: now 'from' only works properly on word boundaries)
-// - relative_offset (maybe: if it means we can just rotate the bulk of a line's data once)
 void planar_bitblt(
    PlanarImage * background,
    PlanarImage * sprite,
@@ -107,6 +103,20 @@ void planar_bitblt(
   if (to.x > sprite->size.x) to.x = sprite->size.x;
   if (to.y > sprite->size.y) to.y = sprite->size.y;
 
+  // Take 'from' offset into account
+  int fromx_offset = from.x % WORD_SIZE;
+  // Say, offset is 7; we start drawing 7 bits earlier but mask off the end
+  at.x -= fromx_offset;
+  from.x -= fromx_offset;
+  // Then mask should be 000000011111111...
+  // either for the full word or until to.x, whichever comes first
+  int mask_end = (to.x - from.x) < WORD_SIZE ? to.x - from.x : WORD_SIZE;
+  WORD_T fromx_offset_mask = 0;
+  for (int i=fromx_offset;i<mask_end;i++) {
+    fromx_offset_mask |= 1 << ((WORD_SIZE-1)-i);
+  }
+
+  // This is the 'at' offset
   int offset = at.x % WORD_SIZE;
   if (offset < 0) offset +=WORD_SIZE;
 
@@ -114,11 +124,13 @@ void planar_bitblt(
   uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, 1);
 
   for(int i=from.y; i<to.y;i++) {
+
+    // start at x=0 with 'from.x' mask; clean at end of for loop
+    WORD_T mask = fromx_offset_mask;
+
     for(int j=from.x; j<to.x;j+=WORD_SIZE) {
       uint32_t sprite_pixel_idx = (i*sprite_width_aligned) + j;
       uint32_t sprite_word_idx = sprite_pixel_idx / WORD_SIZE;
-
-      WORD_T mask = 0;
 
       // basic mask for cutting off alignment
       uint32_t mask_end = sprite->size.x - j > WORD_SIZE ? WORD_SIZE : sprite->size.x - j;
@@ -163,6 +175,8 @@ void planar_bitblt(
          background->planes[from_plane+n][bg_byte_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite
         }
       }
+      
+      mask = 0;
     }
   }
 }

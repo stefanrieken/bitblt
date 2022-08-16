@@ -130,9 +130,7 @@ void draw_cb(coords from, coords to) {
     int toy = from.y > to.y ? from.y : to.y;
 
     // The '+1' is needed because 'draw_line' counts inclusive but redraw doesn't
-    // TODO planar_bitblt presently chokes on misaligned from.x
-    //planar_bitblt_all(dd->planar_display, background, (coords){fromx,fromy}, (coords) {tox+1,toy+1}, (coords){fromx,fromy}, -1);
-    planar_bitblt_full(dd->planar_display, background, (coords){0,0}, -1);
+    planar_bitblt_all(dd->planar_display, background, (coords){fromx,fromy}, (coords) {tox+1,toy+1}, (coords){fromx,fromy}, -1);
     display_redraw((area) { (coords){fromx,fromy}, (coords) {tox+1,toy+1} });
   }
 }
@@ -153,9 +151,7 @@ void hover_cb(coords where) {
   } else {
     if (has_overlay) {
       // hide overlay by restoring background
-
-      // a from.x value of 16 would do, but planar_bitblt presently chokes on misaligned from.x
-      coords from = (coords) {32,background->size.y-8};
+      coords from = (coords) {16,background->size.y-8};
       coords to = (coords) {background->size.x, background->size.y};
       planar_bitblt_all(dd->planar_display, background, from, to, from, -1);
       display_redraw((area) { from, to });

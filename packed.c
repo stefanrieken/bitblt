@@ -136,12 +136,24 @@ void packed_bitblt(
 {
   uint8_t pixels_per_word = WORD_SIZE / background->depth;
 
+  // Take 'from' offset into account
+  // See planar implementation for reference
+  int fromx_offset = (from.x * pixels_per_word) % WORD_SIZE;
+  at.x -= fromx_offset / pixels_per_word;
+  from.x -= fromx_offset / pixels_per_word;
+  int mask_end = ((to.x - from.x) * pixels_per_word) < WORD_SIZE ? ((to.x - from.x) * pixels_per_word) : WORD_SIZE;
+  WORD_T fromx_offset_mask = 0;
+  for (int i=fromx_offset;i<mask_end;i++) {
+    fromx_offset_mask |= 1 << ((WORD_SIZE-1)-i);
+  }
+
   // offset to the right of the applicable word in pixels
+  // this is the 'at' offset
   int offset = at.x % pixels_per_word;
   if (offset < 0) offset += pixels_per_word;
 
   // So for now, set at.x to a word boundary AND make it point to the word containing the pixel.
-  at.x = (at.x - offset) / pixels_per_word;
+  at.x = at.x - offset;
   // also, pre-multiply offset with bpp
   offset *= background->depth;
 
@@ -153,40 +165,45 @@ void packed_bitblt(
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
 
   for(int i = from.y; i < to.y; i++) {
-    for (int j = from.x; j < to_width_aligned / pixels_per_word; j++) {
+
+    // start at x=0 with 'from.x' mask; clean at end of for loop
+    WORD_T mask = fromx_offset_mask;
+
+    for (int j = from.x; j < to.x; j+=pixels_per_word) {
       // if y out of bounds, we have nothing to do here
       if ((at.y-from.y)+i < 0) continue;
       if ((at.y-from.y)+i >= background->size.y) continue;
 
-      int spr_word_idx = (i * (sprite_width_aligned/pixels_per_word)) + j;
-      uint32_t spr_word = sprite->data[spr_word_idx];
+      int spr_word_idx = ((i * sprite_width_aligned) + j)/pixels_per_word;
+      WORD_T spr_word = sprite->data[spr_word_idx];
 
-      uint32_t mask;
       if (transparent != -1) {
-        mask = make_mask(spr_word ^ transparent_pattern, mask_pattern, sprite->depth);
+        mask &= make_mask(mask & (spr_word ^ transparent_pattern), mask_pattern, sprite->depth);
         spr_word &= mask;
       } else {
         // opaque bitblt; still dynamically mask off (clip) width at image width
-        uint32_t mask_end = sprite->size.x - (j*pixels_per_word) > WORD_SIZE ? WORD_SIZE : sprite->size.x - (j*pixels_per_word);
+        uint32_t mask_end = ((sprite->size.x - j)*pixels_per_word) > WORD_SIZE ? WORD_SIZE : ((sprite->size.x - j)*pixels_per_word);
         for (int k = 0; k < mask_end;k++) {
           mask |= 1 << ((WORD_SIZE-1)-k);
         }
       }
 
       // Merge sprite into background by ANDing with calculated mask and ORing with sprite data
-      int bg_word_idx = (((at.y-from.y)+i) * (background_width_aligned/pixels_per_word)) + ((at.x-from.x)+j);
+      int bg_word_idx = ((((at.y-from.y)+i) * background_width_aligned) + ((at.x-from.x)+j))/pixels_per_word;
 
       // Make up for any offset by shifting into two consecutive words; word 0 first
-      if ((at.x-from.x)+j >= 0 && (at.x-from.x)+j < background_width_aligned / pixels_per_word) {
+      if ((at.x-from.x)+j >= 0 && (at.x-from.x)+j < background_width_aligned) {
         uint32_t * bg_word0 = &background->data[bg_word_idx];
         *bg_word0 = (*bg_word0 & ~(mask >> offset)) | (spr_word >> offset);
       }
 
       // blt any spillover into the next word
-      if (offset != 0 && (at.x-from.x)+j+1 >= 0 && (at.x-from.x)+j+1 < background_width_aligned / pixels_per_word) {
+      if (offset != 0 && (at.x-from.x)+j+1 >= 0 && (at.x-from.x)+j+1 < background_width_aligned) {
         uint32_t * bg_word1 = &background->data[bg_word_idx+1];
         *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
       }
+
+      mask = 0xFFFFFFFF;
     }
   }
 }
