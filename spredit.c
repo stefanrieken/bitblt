@@ -71,29 +71,32 @@ void * mainloop(void * args) {
   draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {15,47}, true, 1);
   draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 7,55}, true, 1);
   draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {15,63}, true, 1);
-  // checkerboard the edit window
+
+  // dot-mark edit window
   for (int i=0;i<64;i+=8) {
     for (int j=0;j<64;j+=8) {
-      if (i%16 != j%16) {
-        draw_rect(background->planes[3], background->size, (coords) {16+j,i}, (coords) {16+j+7,i+7}, true, 1);
-      }
+      draw_line(background->planes[0], background->size, (coords) {16+j+7,i+7}, (coords) {16+j+7,i+7}, 1);
     }
   }
   // or no wait, load in data
   uint8_t * palette_read;
-  PlanarImage * spritesheet = unpack(read_bitmap_nt("spritesheet.bmp", &palette_read));
-  if (spritesheet != NULL)
-    planar_bitblt_all(background, spritesheet, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
+  PackedImage * spritesheet = read_bitmap("spritesheet.bmp", &palette_read);
+  if (spritesheet != NULL) {
+    PlanarImage * unpacked = unpack(spritesheet);
+    planar_bitblt_all(background, unpacked, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
+    free(spritesheet->data);
+    free(spritesheet);
+  }
 
   // Copy background to display.
   // Even though drawing is done directly on the background,
   // we do want to add & remove overlays on it at will.
-  planar_bitblt_full(dd->planar_display, background, (coords){0,0}, -1); // TODO optimize rectangle
-  display_redraw((area) {(coords) {0,0}, (coords){background->size.x, background->size.y}}); // TODO optimize rectangle
+  planar_bitblt_full(dd->planar_display, background, (coords){0,0}, -1);
+  display_redraw((area) {(coords) {0,0}, (coords){background->size.x, background->size.y}});
   return 0;
 }
 
-bool has_overlay;
+char * overlay_txt;
 void show_overlay(char * txt) {
   PlanarImage * text = render_text(txt, 1, false, false);
   PlanarImage * no_text = new_planar_image(text->size.x , text->size.y, 1);
@@ -108,7 +111,7 @@ void show_overlay(char * txt) {
   planar_bitblt_plane(dd->planar_display, no_text, (coords) {from.x, from.y}, 3);
 
   display_redraw((area) { from, (coords) {from.x+text->size.x, from.y+text->size.y} });
-  has_overlay = true;
+  overlay_txt = txt;
 }
 
 uint32_t color;
@@ -117,6 +120,16 @@ void click_cb(coords from, coords to) {
   if (from.x == to.x && from.y==to.y && to.x <16 && to.y < 40) {
     // pick a color!
     color = gather_pixel(background, to.y*image_aligned_width(background->size.x, 1)+to.x);
+  } else if (overlay_txt != NULL) {
+    if (strcmp("save", overlay_txt) == 0) {
+      PackedImage * out = new_packed_image(64,64,background->depth);
+      PackedImage * bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
+      packed_bitblt(out, bg, (coords){16,0}, bg->size, (coords) {0,0}, -1); // N.b. will cut off size to spreadsheet size!
+      write_bitmap("out.bmp",palette, out->data, out->size.x, out->size.y, out->depth);
+      free(out->data);
+      free(out);
+      show_overlay("saved");
+    }
   }
 }
 
@@ -141,29 +154,33 @@ void draw_cb(coords from, coords to) {
 }
 
 char * tooltips[] = {
-  "file", "draw", "fill", "line", "square", "circle"
+  "save", "draw", "fill", "line", "square", "circle"
 };
 
 void hover_cb(coords where) {
+  char buffer[8];
   if (where.x < 0 || where.y < 0) return;
   if (where.x <16 && where.y < 40) {
     // pick a color!
     uint32_t color = gather_pixel(background, where.y*image_aligned_width(background->size.x, 1)+where.x);
 
-    char buffer[8];
     sprintf(buffer, "#%02X%02X%02X", palette[color*3], palette[color*3+1], palette[color*3+2]);
     show_overlay(buffer);
   } else {
-    if (has_overlay) {
+    if (overlay_txt != NULL) {
       // hide overlay by restoring background
       coords from = (coords) {16,background->size.y-8};
       coords to = (coords) {background->size.x, background->size.y};
       planar_bitblt_all(dd->planar_display, background, from, to, from, -1);
       display_redraw((area) { from, to });
-      has_overlay = false;
+      overlay_txt = NULL;
     }
     if (where.x <16 && where.y > 40) {
       show_overlay(tooltips[(where.x/8) + (((where.y-40)/8)*2)]);
+    } else if (where.x >=16 && where.y < 64-8) {
+      // show coords
+      sprintf(buffer, "%d,%d", where.x-16, where.y);
+      show_overlay(buffer);
     }
   }
 }
@@ -179,6 +196,8 @@ int main (int argc, char ** argv) {
   dd->planar_display = new_planar_image(80, 64, 4);
   dd->palette = palette;
   dd->scale = 2; // comes on top of any default scaling
+
+  overlay_txt = NULL;
 
   display_init(argc, argv, dd, delegate_callbacks(draw_cb, click_cb, hover_cb));
 

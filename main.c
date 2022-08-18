@@ -234,7 +234,7 @@ void * demo(void * args) {
   display_redraw(all);
 
   // log evidence to file
-  write_bitmap("demo_text.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
+  write_bitmap("demo_text_out.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
 
   // Mainloop 2
   i = 0; j=0;
@@ -265,11 +265,11 @@ void * demo(void * args) {
       }
   }
 
-  write_bitmap("demo_text_with_kitty.bmp", palette, pack(display), background->size.x, background->size.y, background->depth);
+  write_bitmap("demo_text_with_kitty_out.bmp", palette, pack(display), background->size.x, background->size.y, background->depth);
 
   uint8_t * palette_read;
-  PackedImage * image_read = read_bitmap("demo_text_with_kitty.bmp", &palette_read);
-  write_bitmap("i_read_this_you_know.bmp", palette_read, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
+  PackedImage * image_read = read_bitmap("demo_text_with_kitty_out.bmp", &palette_read);
+  write_bitmap("read_write_out.bmp", palette_read, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
 
   return 0;
 }

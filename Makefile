@@ -26,4 +26,4 @@ compose: display/display_gtk.o shared.o compose.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
 clean:
-	rm -f *.bmp *.a *.o display/*.o demo-gtk demo-none spredit compose
+	rm -f *out.bmp *.a *.o display/*.o demo-gtk demo-none spredit compose

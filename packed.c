@@ -160,7 +160,6 @@ void packed_bitblt(
 
   uint32_t background_width_aligned = image_aligned_width(background->size.x, background->depth);
   uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, sprite->depth);
-  uint32_t to_width_aligned = image_aligned_width(to.x, sprite->depth);
 
   uint32_t mask_pattern = repeat_pattern(1, sprite->depth);
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
