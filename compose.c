@@ -33,13 +33,18 @@ void move(Composable * c) {
   add_dirty(c->area);
 }
 
+void compose_move(Composable * tree) {
+  // note that this externally applied behaviour
+  // isn't activated in any sub-tree nodes, if we ever have them
+  for (int i=0;i<tree->num_nodes;i++) {
+    Composable * node = tree->nodes[i];
+    move(node);
+  }
+}
+
 void compose_tree (Composable * tree, Image * on, area dirty) {
   for (int i=0;i<tree->num_nodes;i++) {
     Composable * node = tree->nodes[i];
-
-    // let's do moving here for now
-    move(node);
-
     if (overlaps(node->area, dirty)) {
       // notice that we keep drawing on the original background
       node->compose(node, on, dirty);
@@ -188,6 +193,7 @@ PackedImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeigh
 
 PackedImage * background;
 void * demo(void * args) {
+  DisplayData * dd = (DisplayData *) args;
 
   configure_draw(4); // 4 bpp
 
@@ -244,11 +250,11 @@ void * demo(void * args) {
   bricks_c->speed = (coords) {-2, 0};
 
   PackedImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
-  Composable * text1 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {txt1->size.x, txt1->size.y}));
+  Composable * text1 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {8+txt1->size.x, 8+txt1->size.y}));
   text1->image = txt1;
 
   PackedImage * txt2 = draw_text2("objects!", 0, false, false);
-  Composable * text2 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {txt2->size.x, txt2->size.y}));
+  Composable * text2 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {8+txt2->size.x, 8+txt2->size.y}));
   text2->image = txt2;
   text2->speed = (coords) {1,0};
 
@@ -259,17 +265,23 @@ void * demo(void * args) {
   // then through 'dirty'
   for (int i=0; i<96;i++) {
     clear_dirty();
-    root->compose(root, background, root->area);
+    compose_move(root);
+    for (int j=0;j<num_dirty;j++)
+      root->compose(root, background, dirty[j]);
     redraw_dirty(root, background);
     usleep(30000);
+    if (dd->display_finished) return 0;
   }
   text2->speed.x = 0;
   bricks_c->area.to.x=400;
   for (int i=0; i<96;i++) {
     clear_dirty();
-    root->compose(root, background, root->area);
+    compose_move(root);
+    for (int j=0;j<num_dirty;j++)
+      root->compose(root, background, dirty[j]);
     redraw_dirty(root, background);
     usleep(30000);
+    if (dd->display_finished) return 0;
   }
 
   return 0;
@@ -282,6 +294,7 @@ int main (int argc, char ** argv) {
   dd->display = background;
   dd->palette = palette;
   dd->scale = 1; // comes on top of any default scaling
+  dd->display_finished = false;
 
   display_init(argc, argv, dd, NULL);
 
