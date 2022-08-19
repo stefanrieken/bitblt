@@ -11,23 +11,8 @@
 #include "bitmap.h"
 #include "display/display.h"
 
-struct Composable;
-typedef void ComposeCallback (struct Composable * c, Image * on, area a);
+#include "compose.h"
 
-typedef struct Composable {
-  area area;
-
-  ComposeCallback * compose;
-  union {
-    struct Composable ** nodes; // composite node, effectively always renders 'on' a root display canvas
-    Image * image; // one form of leaf data; render on 'on' by bitblt
-    TileMap * map;
-    void * data;   // another (abstract) form; may be e.g. a tilemap
-    int color;
-  };
-  int num_nodes;
-  int transparent; // selects transparency color; -1 for none (if transparent, we can't assume other objects are hidden behind)
-} Composable;
 
 static inline
 bool overlaps (area a, area b) {
@@ -36,9 +21,25 @@ bool overlaps (area a, area b) {
          (a.from.y < b.to.y && b.from.y < a.to.y);
 }
 
+static inline
+void move(Composable * c) {
+  if (c->speed.x == 0 && c->speed.y == 0) return;
+
+  add_dirty(c->area);
+  c->area.from.x += c->speed.x;
+  c->area.from.y += c->speed.y;
+  c->area.to.x += c->speed.x;
+  c->area.to.y += c->speed.y;
+  add_dirty(c->area);
+}
+
 void compose_tree (Composable * tree, Image * on, area dirty) {
   for (int i=0;i<tree->num_nodes;i++) {
     Composable * node = tree->nodes[i];
+
+    // let's do moving here for now
+    move(node);
+
     if (overlaps(node->area, dirty)) {
       // notice that we keep drawing on the original background
       node->compose(node, on, dirty);
@@ -77,13 +78,26 @@ void compose_planar(Composable * planar, PlanarImage * on, area dirty) {
 // A simple background color painter.
 // Optimized by looking at the dirty area (for a change).
 void compose_fill_packed(Composable * fill, PackedImage * on, area dirty) {
-  draw_rect(on->data, on->size, dirty.from, dirty.to, true, 1);//fill->color);
+  draw_rect(on->data, on->size, dirty.from, dirty.to, true, fill->color);
 }
 
 void compose_tilemap(Composable * tilemap, Image * on, area a) {
-  apply_plain_tile_map(tilemap->map, on, (coords) {0,0}, tilemap->map->map_size, packed_bitblt, tilemap->area.from, -1);
-}
+  // the un-repeated size
+  coords tilemap_size;
+  tilemap_size.x = tilemap->map->map_size.x * tilemap->map->tile_size.x;
+  tilemap_size.y = tilemap->map->map_size.y * tilemap->map->tile_size.y;
 
+  // quick-hack fix for negative fall-through
+  // in actuality a moving tilemap should keep a fixed window
+  if (tilemap->area.from.x <= -tilemap_size.x) { tilemap->area.from.x += tilemap_size.x; tilemap->area.to.x += tilemap_size.x; }
+  if (tilemap->area.from.y <= -tilemap_size.y) { tilemap->area.from.y += tilemap_size.y; tilemap->area.to.y += tilemap_size.y; }
+
+  for (int y = tilemap->area.from.y; y < tilemap->area.to.y; y += tilemap_size.y) {
+    for (int x = tilemap->area.from.x; x < tilemap->area.to.x; x += tilemap_size.x) {
+      apply_plain_tile_map(tilemap->map, on, (coords) {0,0}, tilemap->map->map_size, packed_bitblt, (coords) {x,y}, -1);
+    }
+  }
+}
 
 
 static inline
@@ -92,6 +106,7 @@ Composable * new_composable(ComposeCallback * cb, coords from, coords to) {
   result->compose = cb;
   result->area.from = from;
   result->area.to = to;
+  result->speed = (coords) {0,0};
   return result;
 }
 
@@ -105,7 +120,8 @@ Composable * add_composable(Composable * tree, Composable * node) {
 
 #define MAX_DIRTY 8
 area dirty[MAX_DIRTY];
-int num_dirty;void clear_dirty() {
+int num_dirty;
+void clear_dirty() {
   num_dirty=0;
 }
 
@@ -152,19 +168,10 @@ void add_dirty(area d) {
     num_dirty++;
   }
 }
-void recompose_dirty(Composable * root, Image * background) {
+void redraw_dirty(Composable * root, Image * background) {
   for (int i=0; i<num_dirty; i++) {
-    root->compose(root, background, dirty[i]);
     display_redraw(dirty[i]);
   }
-}
-
-void move(Composable * c, coords dest) {
-  add_dirty(c->area);
-  c->area.to.x = (c->area.to.x - c->area.from.x) + dest.x;
-  c->area.to.y = (c->area.to.y - c->area.from.y) + dest.y;
-  c->area.from = dest;
-  add_dirty(c->area);
 }
 
 PackedImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeight) {
@@ -186,45 +193,82 @@ void * demo(void * args) {
 
   Composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
   Composable * fill = add_composable(root, new_composable(compose_fill_packed, root->area.from, root->area.to));
-  fill->color = 0b01;
-
-  PackedImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
-  Composable * text1 = add_composable(root, new_composable(compose_packed, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
-  text1->image = txt1;
-
-  PackedImage * txt2 = draw_text2("objects!", 0, false, false);
-  Composable * text2 = add_composable(root, new_composable(compose_packed, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
-  text2->image = txt2;
+  fill->color = 9;
 
   uint8_t (*palette_read)[];
   PackedImage * tileset = read_bitmap("spritesheet.bmp", &palette_read);
   for (int i=0;i<(1<<tileset->depth)*3;i++) (*palette)[i] = (*palette_read)[i];
   free(palette_read);
 
-  TileMap * map = malloc(sizeof(TileMap));
-  map->tileset = tileset;
-  map->tile_size = (coords) {8,8};
-  map->map_size = (coords) {4,4};
-  map->map = (uint8_t[]){
-    2,2,3,2,
-    10,11,2,2,
-    48,49,48,49,
-    48,49,48,49
+  TileMap strato = {
+    tileset,
+    (coords) {8,8}, // tile size
+    (coords) {4,1}, // num tiles
+    (uint8_t[]){
+      2,2,3,2,
+    },
+    0xFF // mask
   };
-  map->mask = 0xFF;
-  Composable * tilemap = add_composable(root, new_composable(compose_tilemap, (coords) {10,10}, (coords) {8*4,8*2}));
-  tilemap->map = map;
+  Composable * strato_c = add_composable(root, new_composable(compose_tilemap, (coords) {0,0}, (coords) {200,8*1}));
+  strato_c->map = &strato;
+
+  TileMap sky = {
+    tileset,
+    (coords) {8,8}, // tile size
+    (coords) {4,1}, // num tiles
+    (uint8_t[]){
+      10,11,2,2
+    },
+    0xFF // mask
+  };
+  
+  // We just assign a larger-than-screen strip here
+  Composable * sky_c = add_composable(root, new_composable(compose_tilemap, (coords) {0,8}, (coords) {232,8+8*1}));
+  sky_c->map = &sky;
+
+  sky_c->speed = (coords) {-1, 0};
+
+  TileMap bricks = {
+    tileset,
+    (coords) {8,8}, // tile size
+    (coords) {4,2}, // num tiles
+    (uint8_t[]){
+      48,49,48,49,
+      48,49,48,49
+    },
+    0xFF // mask
+  };
+
+  Composable * bricks_c = add_composable(root, new_composable(compose_tilemap, (coords) {0,16}, (coords) {232,16+8*2}));
+  bricks_c->map = &bricks;
+  bricks_c->speed = (coords) {-2, 0};
+
+  PackedImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
+  Composable * text1 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {txt1->size.x, txt1->size.y}));
+  text1->image = txt1;
+
+  PackedImage * txt2 = draw_text2("objects!", 0, false, false);
+  Composable * text2 = add_composable(root, new_composable(compose_packed, (coords){8,8}, (coords) {txt2->size.x, txt2->size.y}));
+  text2->image = txt2;
+  text2->speed = (coords) {1,0};
 
   // first a 'manual' composition
   root->compose(root, background, root->area);
   display_redraw(root->area);
 
   // then through 'dirty'
-
   for (int i=0; i<96;i++) {
     clear_dirty();
-    move(text2, (coords) {i,0});
-    recompose_dirty(root, background);
+    root->compose(root, background, root->area);
+    redraw_dirty(root, background);
+    usleep(30000);
+  }
+  text2->speed.x = 0;
+  bricks_c->area.to.x=400;
+  for (int i=0; i<96;i++) {
+    clear_dirty();
+    root->compose(root, background, root->area);
+    redraw_dirty(root, background);
     usleep(30000);
   }
 
