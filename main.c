@@ -129,7 +129,7 @@ area all;
 
 void * demo(void * args) {
   //dd = (DisplayData *) args;
-  PlanarImage * display = dd->planar_display;
+  PackedImage * packed_disp = dd->display;
 
   // PlanarImage *
   background = new_planar_image(310, 200, 4);
@@ -147,11 +147,9 @@ void * demo(void * args) {
   planar_bitblt_plane(color_cat, img_cat3, (coords) {0,0}, 3);
 
   // show off some 'packed' tricks
-  dd->packed = true;
 
   write_intro_text(background);
 
-  PackedImage * packed_disp = dd->packed_display;
   packed_bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
   PackedImage * packed_cat = to_packed_image(pack(color_cat), color_cat->size.x, color_cat->size.y, color_cat->depth);
 
@@ -200,8 +198,8 @@ void * demo(void * args) {
       // We can draw safely outside the screen!
       // But for the visual effect we will only dip outside briefly.
       // Take into account that our sprite is actually 32 wide.
-      if (i <= -16 || i >= display->size.x) increment_i = -increment_i;
-      if (j <= -16 || j >= display->size.y) increment_j = -increment_j;
+      if (i <= -16 || i >= packed_disp->size.x) increment_i = -increment_i;
+      if (j <= -16 || j >= packed_disp->size.y) increment_j = -increment_j;
 
       if (!dd->display_finished) {
         display_redraw(all);
@@ -210,6 +208,8 @@ void * demo(void * args) {
   }
 
   // now some planar tricks
+  PlanarImage * display = new_planar_image(dd->display->size.x, dd->display->size.y, dd->display->depth);
+  dd->display = display;
   dd->packed = false;
   write_demo_text(background);
 
@@ -267,9 +267,12 @@ void * demo(void * args) {
 
   write_bitmap("demo_text_with_kitty_out.bmp", palette, pack(display), background->size.x, background->size.y, background->depth);
 
-  uint8_t * palette_read;
+  uint8_t (*palette_read)[];
   PackedImage * image_read = read_bitmap("demo_text_with_kitty_out.bmp", &palette_read);
-  write_bitmap("read_write_out.bmp", palette_read, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
+  write_bitmap("read_write_out.bmp", palette, image_read->data, image_read->size.x, image_read->size.y, image_read->depth);
+
+  for (int i=0;i<(1<<image_read->depth)*3;i++) (*dd->palette)[i] = (*palette_read)[i];
+  free(palette_read);
 
   return 0;
 }
@@ -286,8 +289,8 @@ void draw_cb(coords from, coords to) {
 int main (int argc, char ** argv) {
   dd = malloc(sizeof(DisplayData));
 
-  dd->planar_display = new_planar_image(310, 200, 4);
-  dd->packed_display = new_packed_image(310, 200, 4);
+  dd->packed = true;
+  dd->display = new_packed_image(310, 200, 4);
   dd->palette = palette;
   dd->scale = 1;
 

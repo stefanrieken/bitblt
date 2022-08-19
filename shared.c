@@ -6,7 +6,7 @@
 /**
  * Catty paletty! (as well as some badly defined colors)
  */
-uint8_t palette[] = {
+uint8_t (*palette)[] = &(uint8_t[]) {
  0x00, 0x00, 0x00, // black (and / or transparent!)
  0xFF, 0xFF, 0xFF, // white
 

@@ -12,9 +12,8 @@
  * to keep track of all differnt parts of the display state.
  */
 typedef struct DisplayData {
-  PlanarImage * planar_display;
-  PackedImage * packed_display;
-  uint8_t * palette;
+  PlanarImage * display;
+  uint8_t (* palette)[];
   unsigned int scale; // goes on top of built-in scale
   bool packed;
   bool display_finished;

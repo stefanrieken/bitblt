@@ -7,6 +7,8 @@
 #include "planar.h"
 #include "draw.h"
 #include "font.h"
+#include "tilemap.h"
+#include "bitmap.h"
 #include "display/display.h"
 
 struct Composable;
@@ -19,6 +21,7 @@ typedef struct Composable {
   union {
     struct Composable ** nodes; // composite node, effectively always renders 'on' a root display canvas
     Image * image; // one form of leaf data; render on 'on' by bitblt
+    TileMap * map;
     void * data;   // another (abstract) form; may be e.g. a tilemap
     int color;
   };
@@ -73,14 +76,12 @@ void compose_planar(Composable * planar, PlanarImage * on, area dirty) {
 
 // A simple background color painter.
 // Optimized by looking at the dirty area (for a change).
-void compose_fill_planar(Composable * fill, PlanarImage * on, area dirty) {
-  for (int i=0;i<on->depth;i++) {
-    draw_rect(on->planes[i], on->size, dirty.from, dirty.to, true, (fill->color >> i) & 0b01);
-  }
+void compose_fill_packed(Composable * fill, PackedImage * on, area dirty) {
+  draw_rect(on->data, on->size, dirty.from, dirty.to, true, 1);//fill->color);
 }
 
-// This one is presently just a teaser for the imagination
 void compose_tilemap(Composable * tilemap, Image * on, area a) {
+  apply_plain_tile_map(tilemap->map, on, (coords) {0,0}, tilemap->map->map_size, packed_bitblt, tilemap->area.from, -1);
 }
 
 
@@ -166,7 +167,7 @@ void move(Composable * c, coords dest) {
   add_dirty(c->area);
 }
 
-PlanarImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeight) {
+PackedImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeight) {
   int stretch = 1;
 
   PlanarImage * txt = render_text(text, stretch, fixedWidth, fixedHeight);
@@ -175,25 +176,44 @@ PlanarImage * draw_text2(char * text, int line, bool fixedWidth, bool fixedHeigh
   planar_bitblt_plane(result, txt, (coords) {0, 0}, 0);
   planar_bitblt_plane(result, txt, (coords) {0, 0}, 2);
   free(txt);
-  return result;
+  return to_packed_image(pack(result), result->size.x, result->size.y, result->depth);
 }
 
-PlanarImage * background;
+PackedImage * background;
 void * demo(void * args) {
 
-  configure_draw(1); // 1 bpp planes
+  configure_draw(4); // 4 bpp
 
   Composable * root = new_composable(compose_tree, (coords) {0,0}, background->size);
-  Composable * fill = add_composable(root, new_composable(compose_fill_planar, root->area.from, root->area.to));
+  Composable * fill = add_composable(root, new_composable(compose_fill_packed, root->area.from, root->area.to));
   fill->color = 0b01;
 
-  PlanarImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
-  Composable * text1 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
+  PackedImage * txt1 = draw_text2("Compose & redraw", 0, false, false);
+  Composable * text1 = add_composable(root, new_composable(compose_packed, (coords){0,0}, (coords) {txt1->size.x, txt1->size.y}));
   text1->image = txt1;
 
-  PlanarImage * txt2 = draw_text2("objects!", 0, false, false);
-  Composable * text2 = add_composable(root, new_composable(compose_planar, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
+  PackedImage * txt2 = draw_text2("objects!", 0, false, false);
+  Composable * text2 = add_composable(root, new_composable(compose_packed, (coords){0,0}, (coords) {txt2->size.x, txt2->size.y}));
   text2->image = txt2;
+
+  uint8_t (*palette_read)[];
+  PackedImage * tileset = read_bitmap("spritesheet.bmp", &palette_read);
+  for (int i=0;i<(1<<tileset->depth)*3;i++) (*palette)[i] = (*palette_read)[i];
+  free(palette_read);
+
+  TileMap * map = malloc(sizeof(TileMap));
+  map->tileset = tileset;
+  map->tile_size = (coords) {8,8};
+  map->map_size = (coords) {4,4};
+  map->map = (uint8_t[]){
+    2,2,3,2,
+    10,11,2,2,
+    48,49,48,49,
+    48,49,48,49
+  };
+  map->mask = 0xFF;
+  Composable * tilemap = add_composable(root, new_composable(compose_tilemap, (coords) {10,10}, (coords) {8*4,8*2}));
+  tilemap->map = map;
 
   // first a 'manual' composition
   root->compose(root, background, root->area);
@@ -213,8 +233,9 @@ void * demo(void * args) {
 
 int main (int argc, char ** argv) {
   DisplayData * dd = malloc(sizeof(DisplayData));
-  background = new_planar_image(200, 128, 4);
-  dd->planar_display = background;
+  background = new_packed_image(200, 128, 4);
+  dd->packed = true;
+  dd->display = background;
   dd->palette = palette;
   dd->scale = 1; // comes on top of any default scaling
 

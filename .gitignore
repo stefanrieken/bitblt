@@ -2,6 +2,6 @@ demo-none
 demo-gtk
 spredit
 compose
-*.bmp
+*out.bmp
 *.o
 *.a

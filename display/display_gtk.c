@@ -7,8 +7,6 @@
 #define FIXED_SCALE 4
 
 static DisplayData * _screen_data;
-static uint8_t * _palette;
-static int _depth;
 static unsigned int _scale;
 
 static UserEventCallback * _event_cb;
@@ -23,13 +21,13 @@ void draw_planar_on_surface(cairo_surface_t * surface, int x, int y, int width, 
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
 
-  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->planar_display->size.x, 1);
+  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->display->size.x, 1);
 
   for (int i=y;i<y+height;i++) {
     for(int j=x; j<x+width;j++) {
       // gather indexed pixel data; find palette color
       uint32_t idx = (i * screen_data_width_aligned)+j;
-      uint8_t * pal = &_palette[3*gather_pixel(_screen_data->planar_display, idx)];
+      uint8_t * pal = &(*_screen_data->palette)[3*gather_pixel(_screen_data->display, idx)];
       // and copy to pixbuf
       uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];
       pixel[0] = pal[0];
@@ -43,19 +41,19 @@ void draw_packed_on_surface(cairo_surface_t * surface, int x, int y, int width, 
   uint8_t * pixels = cairo_image_surface_get_data(surface);
   int rowstride = cairo_image_surface_get_stride(surface);
 
-  uint32_t pixels_per_word = WORD_SIZE / _screen_data->packed_display->depth;
+  uint32_t pixels_per_word = WORD_SIZE / _screen_data->display->depth;
 
-  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->packed_display->size.x, _screen_data->packed_display->depth);
+  uint32_t screen_data_width_aligned = image_aligned_width(_screen_data->display->size.x, _screen_data->display->depth);
 
   for (int i=y;i<y+height;i++) {
     for(int j=x; j<x+width;j++) {
       // gather indexed pixel data; find palette color
       uint32_t pixel_idx = (i * screen_data_width_aligned)+j;
       uint32_t pixel_word_idx = pixel_idx / pixels_per_word;
-      uint32_t shift = (pixel_idx % pixels_per_word) * _depth;
+      uint32_t shift = (pixel_idx % pixels_per_word) * _screen_data->display->depth;
 
-      uint8_t px = (_screen_data->packed_display->data[pixel_word_idx] >> ((WORD_SIZE-_depth) - shift)) & 0b1111; // TODO that's a fixed 4-bit mask
-      uint8_t * pal = &_palette[3*px];
+      uint8_t px = (_screen_data->display->data[pixel_word_idx] >> ((WORD_SIZE-_screen_data->display->depth) - shift)) & 0b1111; // TODO that's a fixed 4-bit mask
+      uint8_t * pal = &(*_screen_data->palette)[3*px];
       // and copy to pixbuf
       uint8_t * pixel = &pixels[(i*rowstride) + (j*4)];
       pixel[0] = pal[0];
@@ -121,22 +119,21 @@ void motion_cb(GtkWidget * widget, GdkEventButton * event, gpointer userdata) {
 }
 
 void display_init(int argc, char ** argv, DisplayData * screen_data, UserEventCallback * event_cb) {
+
   _screen_data = screen_data;
-  _palette = _screen_data->palette;
-  _depth = _screen_data->planar_display->depth;
   _scale = FIXED_SCALE * _screen_data->scale;
 
   gtk_init (&argc, &argv);
 
   GtkWindow * window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
   gtk_window_set_title(window, "bitblt on Cairo");
-  gtk_window_set_default_size(window, screen_data->planar_display->size.x*_scale, screen_data->planar_display->size.y*_scale);
+  gtk_window_set_default_size(window, _screen_data->display->size.x*_scale, _screen_data->display->size.y*_scale);
   gtk_window_set_resizable(window, FALSE);
 
   g_signal_connect(G_OBJECT(window), "delete-event", G_CALLBACK(delete_cb), NULL);
 
   drawing_area = gtk_drawing_area_new();
-  gtk_widget_set_size_request(drawing_area, screen_data->planar_display->size.x*_scale, screen_data->planar_display->size.y*_scale);
+  gtk_widget_set_size_request(drawing_area, _screen_data->display->size.x*_scale, _screen_data->display->size.y*_scale);
   gtk_container_add(GTK_CONTAINER(window), drawing_area);
   g_signal_connect(G_OBJECT(drawing_area), "draw", G_CALLBACK(draw_screen_cb), NULL);
   g_signal_connect(G_OBJECT(drawing_area),"configure-event", G_CALLBACK (configure_cb), NULL);

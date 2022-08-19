@@ -23,7 +23,7 @@ static void write_16bit(FILE * file, uint32_t data) {
   fputc(data & 0xFF, file); fputc((data >> 8) & 0xFF, file);
 }
 
-void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_img, int width, int height, int bpp) {
+void write_bitmap(const char * filename, uint8_t (* palette)[], uint32_t * packed_img, int width, int height, int bpp) {
 
   uint32_t packed_width_aligned = image_aligned_width(width, bpp);
 
@@ -58,9 +58,9 @@ void write_bitmap(const char * filename, uint8_t * palette, uint32_t * packed_im
   // N.b. we actually have to write BGR!
   // 1bpp, 4bpp, 16bpp are all common; but 2bpp may be rare / unsupported
   for (int i=0; i<num_colors;i++) {
-    fputc(palette[i*3], file);
-    fputc(palette[i*3+1], file);
-    fputc(palette[i*3+2], file);
+    fputc((*palette)[i*3], file);
+    fputc((*palette)[i*3+1], file);
+    fputc((*palette)[i*3+2], file);
     fputc(0, file);
   }
   // finally, data
@@ -115,7 +115,7 @@ static void expect(char * what, int expected, int got) {
 }
 
 // Returns the packed image; also allocates and fills the pallette
-PackedImage * read_bitmap(const char * filename, uint8_t ** palette) {
+PackedImage * read_bitmap(const char * filename, uint8_t (** palette)[]) {
 
   FILE * file = fopen(filename, "rb");
   if (file == NULL) {
@@ -151,9 +151,9 @@ PackedImage * read_bitmap(const char * filename, uint8_t ** palette) {
   *palette = malloc(sizeof(uint8_t) * 3 * num_colors);
 
   for (int i=0; i<num_colors;i++) {
-    (*palette)[i*3] = fgetc(file);
-    (*palette)[i*3+1] = fgetc(file);
-    (*palette)[i*3+2] = fgetc(file);
+    (**palette)[i*3] = fgetc(file);
+    (**palette)[i*3+1] = fgetc(file);
+    (**palette)[i*3+2] = fgetc(file);
     fgetc(file); // alpha / filler
   }
 

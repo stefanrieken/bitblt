@@ -20,7 +20,7 @@ typedef void HoverEventCallback(coords where);
  /**
   * Catty paletty! (as well as some badly defined colors)
   */
-extern uint8_t palette[];
+extern uint8_t (* palette)[];
 
 /**
  * Make a simple 1-bit image.

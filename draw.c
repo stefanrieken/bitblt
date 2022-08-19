@@ -5,8 +5,6 @@
 
 
 
-#define MASK 1
-
 int signum(int input) {
   if (input > 0) return 1;
   return ((input < 0) ? -1 : 0);
@@ -54,7 +52,7 @@ void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t val
 
   // we draw the starting pixel even if the loop below won't run
   // (that happens if start an end are the same, so that the signums are zero)
-  data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+  data[WORD(y_offset+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
   data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
 
   if (distx > disty) {
@@ -62,7 +60,7 @@ void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t val
     for (; x_offset != x_offset_end; x_offset += addx) {
       // TODO surely we can replace / and % by WORD_SIZE
       // with some smart bit shifting / masking as well?
-      data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(y_offset+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
       data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
       error += disty;
       if ((error * 2) >= distx) {
@@ -74,7 +72,7 @@ void draw_line (WORD_T * data, coords size, coords from, coords to, uint32_t val
     // same as above, but for y
     int y_offset_end = (to.y+signy) * aligned_width * _bpp;
     for (; y_offset != y_offset_end; y_offset += addy) {
-      data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(y_offset+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
       data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
       error += distx;
       if ((error *2) >= disty) {
@@ -98,19 +96,19 @@ void draw_rect (WORD_T * data, coords size, coords from, coords to, bool fill, u
 
   // draw top line
   for (int x_offset=from.x*_bpp; x_offset<=x_offset_end;x_offset += _bpp) {
-    data[WORD(y_offset+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+    data[WORD(y_offset+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
     data[WORD(y_offset+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
   }
   // draw middle; either fill or only sides
   for (int i=y_offset+stepy; i<=y_offset_end; i+=stepy) {
     for (int x_offset=from.x*_bpp; x_offset<=x_offset_end; x_offset+=stepx) {
-      data[WORD(i+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+      data[WORD(i+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
       data[WORD(i+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
     }
   }
   // draw bottom line
   for (int x_offset=from.x*_bpp; x_offset<=x_offset_end;x_offset += _bpp) {
-    data[WORD(y_offset_end+x_offset)] &= ~(MASK << ((WORD_SIZE-_bpp)-BIT(x_offset)));
+    data[WORD(y_offset_end+x_offset)] &= ~(_mask << ((WORD_SIZE-_bpp)-BIT(x_offset)));
     data[WORD(y_offset_end+x_offset)] |= value << ((WORD_SIZE-_bpp)-BIT(x_offset));
   }
 }
@@ -161,7 +159,7 @@ void draw_circle (WORD_T * data, coords size, coords from, coords to, bool arc, 
 
       if (on_line || (fill && inside)) {
         // paint the pixel alright!
-        data[(i*aligned_width+j)/WORD_SIZE] &= ~(MASK << ((WORD_SIZE-1)-(j%WORD_SIZE)));
+        data[(i*aligned_width+j)/WORD_SIZE] &= ~(_mask << ((WORD_SIZE-1)-(j%WORD_SIZE)));
         data[(i*aligned_width+j)/WORD_SIZE] |= value << ((WORD_SIZE-1)-(j%WORD_SIZE));
       }
     }

@@ -125,6 +125,7 @@ void planar_bitblt(
 
   for(int i=from.y; i<to.y;i++) {
 
+    int k = fromx_offset;
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
 
@@ -133,10 +134,11 @@ void planar_bitblt(
       uint32_t sprite_word_idx = sprite_pixel_idx / WORD_SIZE;
 
       // basic mask for cutting off alignment
-      uint32_t mask_end = sprite->size.x - j > WORD_SIZE ? WORD_SIZE : sprite->size.x - j;
-      for (int k = 0; k < mask_end;k++) {
+      uint32_t mask_end = to.x - j > WORD_SIZE ? WORD_SIZE : to.x - j;
+      for (; k < mask_end;k++) {
         mask |= 1 << ((WORD_SIZE-1)-k);
       }
+      k=0; // only start at 'fromx_offset' in first word of line
 
       // refine mask based on transparent color
       if (transparent != -1) {
@@ -173,9 +175,9 @@ void planar_bitblt(
          background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
          // TODO also subject sprite to mask in case of transparent
          background->planes[from_plane+n][bg_byte_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite
-        }
+       }
       }
-      
+
       mask = 0;
     }
   }
