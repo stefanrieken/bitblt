@@ -123,20 +123,30 @@ void planar_bitblt(
   uint32_t background_width_aligned = image_aligned_width(background->size.x, 1);
   uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, 1);
 
+  // Calculate this value by progressive addition instead of repeated multiplication;
+  // but since we don't start at zero, do pre-calculate the initial value
+  int spr_word_idx_y = ((from.y * sprite_width_aligned) + from.x) / WORD_SIZE;
+  int bg_word_idx_y = ((at.y*background_width_aligned) + at.x) / WORD_SIZE;
+  int bg_word_end = (background_width_aligned * background->size.y) / WORD_SIZE;
+
   for(int i=from.y; i<to.y;i++) {
+    int spr_word_idx = spr_word_idx_y;
+    int bg_word_idx = bg_word_idx_y;
 
     int k = fromx_offset;
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
 
+
     for(int j=from.x; j<to.x;j+=WORD_SIZE) {
-      uint32_t sprite_pixel_idx = (i*sprite_width_aligned) + j;
-      uint32_t sprite_word_idx = sprite_pixel_idx / WORD_SIZE;
 
       // basic mask for cutting off alignment
-      uint32_t mask_end = to.x - j > WORD_SIZE ? WORD_SIZE : to.x - j;
-      for (; k < mask_end;k++) {
-        mask |= 1 << ((WORD_SIZE-1)-k);
+      if (to.x -j >= WORD_SIZE) {
+        mask = ~0;
+      } else {
+        for (; k < to.x-j;k++) {
+          mask |= 1 << ((WORD_SIZE-1)-k);
+        }
       }
       k=0; // only start at 'fromx_offset' in first word of line
 
@@ -145,41 +155,42 @@ void planar_bitblt(
         WORD_T transparency_mask = ~0;
         for (int n = 0; n < sprite->depth;n++) {
           WORD_T expected_bits_for_transparent = ((transparent >> n) & 1) ? ~0 : 0;
-          transparency_mask &= (sprite->planes[n][sprite_word_idx] ^ ~expected_bits_for_transparent);
+          transparency_mask &= (sprite->planes[n][spr_word_idx] ^ ~expected_bits_for_transparent);
         }
         mask &= ~transparency_mask;
       }
 
-      // Calculate background position
-      // uint32_t bg_pixel_idx = ((i+at.y)*background_width_aligned) + j+at.x;
-      uint32_t bg_pixel_idx = (((i-from.y)+at.y)*background_width_aligned) + (j-from.x)+at.x;
-      uint32_t bg_byte_idx = bg_pixel_idx / WORD_SIZE;
-
       // check for Y under- & overflow.
       // These are easily skipped because we only blit one row at the time.
-      if (bg_byte_idx < 0) continue;
-      if (bg_byte_idx > background_width_aligned * background->size.y / WORD_SIZE) continue;
+      if (bg_word_idx < 0) goto continue_like_so;
+      if (bg_word_idx > bg_word_end) goto continue_like_so;
 
 
       for(int n=0; n<sprite->depth; n++) {
-        uint32_t sprite_word = sprite->planes[n][sprite_word_idx];
+        uint32_t sprite_word = sprite->planes[n][spr_word_idx];
         // check for X out of bounds (under- or overflow)
 
         if((j-from.x)+at.x>=0 && (j-from.x)+at.x-offset<background->size.x) {
-          background->planes[from_plane+n][bg_byte_idx] &= ~(mask >> offset); // clear required parts
+          background->planes[from_plane+n][bg_word_idx] &= ~(mask >> offset); // clear required parts
           // TODO also subject sprite to mask in case of transparent
-          background->planes[from_plane+n][bg_byte_idx] |= (sprite_word&mask) >> offset; // add sprite
+          background->planes[from_plane+n][bg_word_idx] |= (sprite_word&mask) >> offset; // add sprite
         }
         // overflow any offset into next, unless X+1 out of bounds
         if (offset != 0 && (j-from.x)+at.x+WORD_SIZE>=0 && (j-from.x)+at.x+WORD_SIZE-offset<background->size.x) {
-         background->planes[from_plane+n][bg_byte_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
-         // TODO also subject sprite to mask in case of transparent
-         background->planes[from_plane+n][bg_byte_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite
-       }
+          background->planes[from_plane+n][bg_word_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
+          // TODO also subject sprite to mask in case of transparent
+          background->planes[from_plane+n][bg_word_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite
+        }
       }
 
+continue_like_so:
+      spr_word_idx++;
+      bg_word_idx++;
       mask = 0;
     }
+
+    spr_word_idx_y += sprite_width_aligned / WORD_SIZE;
+    bg_word_idx_y += background_width_aligned / WORD_SIZE;
   }
 }
 

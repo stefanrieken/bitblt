@@ -164,7 +164,15 @@ void packed_bitblt(
   uint32_t mask_pattern = repeat_pattern(1, sprite->depth);
   uint32_t transparent_pattern = transparent == -1 ? 0 : repeat_pattern(transparent, sprite->depth);
 
+  // Calculate these values by progressive addition instead of repeated multiplication;
+  // but since we don't start at zero, do pre-calculate the initial value;
+  int spr_word_idx_y = ((from.y *sprite_width_aligned) + from.x) / pixels_per_word;
+  int bg_word_idx_y = ((at.y * background_width_aligned) + at.x)/pixels_per_word;
+  int bg_word_end = (background_width_aligned * background->size.y) / pixels_per_word;
+
   for(int i = from.y; i < to.y; i++) {
+    int spr_word_idx = spr_word_idx_y;
+    int bg_word_idx = bg_word_idx_y;
 
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
@@ -172,27 +180,24 @@ void packed_bitblt(
 
     for (int j = from.x; j < to.x; j+=pixels_per_word) {
       // if y out of bounds, we have nothing to do here
-      if ((at.y-from.y)+i < 0) continue;
-      if ((at.y-from.y)+i >= background->size.y) continue;
+      if ((at.y-from.y)+i < 0) goto continue_like_so;
+      if (bg_word_idx >= bg_word_end) goto continue_like_so;
 
-      int spr_word_idx = ((i * sprite_width_aligned) + j)/pixels_per_word;
       WORD_T spr_word = sprite->data[spr_word_idx];
 
       if (transparent != -1) {
         mask = make_mask(mask & (spr_word ^ transparent_pattern), mask_pattern, sprite->depth);
         spr_word &= mask;
-      } else {
+      } else if (j +pixels_per_word == to.x) {
         // opaque bitblt; still dynamically mask off (clip) width at image width
         uint32_t mask_end = ((to.x - j)*pixels_per_word) > WORD_SIZE ? WORD_SIZE : ((to.x - j)*pixels_per_word);
         for (; k < mask_end;k++) {
           mask |= 1 << ((WORD_SIZE-1)-k);
         }
-        k=0; // only start at 'fromx_offset' in first word of line
       }
+      k=0; // only start at 'fromx_offset' in first word of line
 
       // Merge sprite into background by ANDing with calculated mask and ORing with sprite data
-      int bg_word_idx = ((((at.y-from.y)+i) * background_width_aligned) + ((at.x-from.x)+j))/pixels_per_word;
-
       // Make up for any offset by shifting into two consecutive words; word 0 first
       if ((at.x-from.x)+j >= 0 && (at.x-from.x)+j < background_width_aligned) {
         uint32_t * bg_word0 = &background->data[bg_word_idx];
@@ -205,8 +210,15 @@ void packed_bitblt(
         *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
       }
 
-      mask = 0xFFFFFFFF;
+      mask = ~0;
+
+continue_like_so:
+      spr_word_idx++;
+      bg_word_idx++;
     }
+
+    spr_word_idx_y += sprite_width_aligned / pixels_per_word;
+    bg_word_idx_y += background_width_aligned / pixels_per_word;
   }
 }
 

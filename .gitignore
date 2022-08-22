@@ -3,5 +3,6 @@ demo-gtk
 spredit
 compose
 *out.bmp
+*.out
 *.o
 *.a

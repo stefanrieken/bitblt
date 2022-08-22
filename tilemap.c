@@ -18,7 +18,6 @@ void apply_plain_tile_map(TileMap * map, PackedImage * bg, coords from, coords s
    int n=1;
    for (int i=from.y; i<from.y+size.y; i++) {
      for (int j=from.x; j<from.x+size.x; j += n) {
-
        uint8_t tile = map->map[i*map->map_size.x+j] & map->mask;
 
        // e.g. tile = 2; img is 16x16; x,y is 0,8

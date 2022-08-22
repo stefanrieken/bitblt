@@ -203,7 +203,7 @@ void * demo(void * args) {
 
       if (!dd->display_finished) {
         display_redraw(all);
-        usleep(20000); // don't time the display if there is none
+//        usleep(20000); // don't time the display if there is none
       }
   }
 
@@ -261,7 +261,7 @@ void * demo(void * args) {
 
       if (!dd->display_finished) {
         display_redraw(all);
-        usleep(20000); // don't time the display if there is none
+//        usleep(20000); // don't time the display if there is none
       }
   }
 
