@@ -105,6 +105,7 @@ void planar_bitblt(
 
   // Take 'from' offset into account
   int fromx_offset = from.x % WORD_SIZE;
+
   // Say, offset is 7; we start drawing 7 bits earlier but mask off the end
   at.x -= fromx_offset;
   from.x -= fromx_offset;
@@ -119,6 +120,7 @@ void planar_bitblt(
   // This is the 'at' offset
   int offset = at.x % WORD_SIZE;
   if (offset < 0) offset +=WORD_SIZE;
+  at.x = at.x - offset;
 
   uint32_t background_width_aligned = image_aligned_width(background->size.x, 1);
   uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, 1);
@@ -138,21 +140,17 @@ void planar_bitblt(
     int spr_word_idx = spr_word_idx_y + (from.x / WORD_SIZE);
     int bg_word_idx = bg_word_idx_y + (at.x / WORD_SIZE);
 
-    int k = fromx_offset;
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
 
     for(int j=from.x; j<to.x;j+=WORD_SIZE) {
 
-      // basic mask for cutting off alignment
-      if (to.x -j >= WORD_SIZE) {
-        mask = ~0;
-      } else {
-        for (; k < to.x-j;k++) {
-          mask |= 1 << ((WORD_SIZE-1)-k);
+      // cut off end alignment by removing relevant 1's from mask
+      if (to.x -j < WORD_SIZE) {
+        for (int n=to.x-j; n<WORD_SIZE;n++) {
+          mask &= ~(1 << ((WORD_SIZE-1)-n));
         }
       }
-      k=0; // only start at 'fromx_offset' in first word of line
 
       // refine mask based on transparent color
       if (transparent != -1) {
@@ -183,7 +181,7 @@ void planar_bitblt(
 
       spr_word_idx++;
       bg_word_idx++;
-      mask = 0;
+      mask = ~0;
     }
 
 continue_like_so:
