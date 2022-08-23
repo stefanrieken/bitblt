@@ -134,6 +134,7 @@ void click_cb(coords from, coords to) {
     }
   } else if (overlay_txt != NULL) {
     if (strcmp("save", overlay_txt) == 0) {
+      //background->depth=1;
       PackedImage * out = new_packed_image(64,64,background->depth);
       PackedImage * bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
       packed_bitblt(out, bg, (coords){16,0}, bg->size, (coords) {0,0}, -1); // N.b. will cut off size to spreadsheet size!
@@ -223,9 +224,10 @@ void * mainloop(void * args) {
   draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {15,63}, true, 1);
 
   // dot-mark edit window
-  for (int i=0;i<64;i+=8) {
-    for (int j=0;j<64;j+=8) {
-      draw_line(background->planes[0], background->size, (coords) {16+j+7,i+7}, (coords) {16+j+7,i+7}, 1);
+  int step =8;
+  for (int i=0;i+(step-1)<64;i+=step) {
+    for (int j=0;j+(step-1)<64;j+=step) {
+      draw_line(background->planes[0], background->size, (coords) {16+j+(step-1),i+(step-1)}, (coords) {16+j+(step-1),i+(step-1)}, 1);
     }
   }
   // or no wait, load in data

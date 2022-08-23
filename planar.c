@@ -125,18 +125,22 @@ void planar_bitblt(
 
   // Calculate this value by progressive addition instead of repeated multiplication;
   // but since we don't start at zero, do pre-calculate the initial value
-  int spr_word_idx_y = ((from.y * sprite_width_aligned) + from.x) / WORD_SIZE;
-  int bg_word_idx_y = ((at.y*background_width_aligned) + at.x) / WORD_SIZE;
-  int bg_word_end = (background_width_aligned * background->size.y) / WORD_SIZE;
+  int spr_word_idx_y = from.y * (sprite_width_aligned / WORD_SIZE);
+  int bg_word_idx_y = at.y * (background_width_aligned / WORD_SIZE);
+  int bg_word_end =  background->size.y * (background_width_aligned / WORD_SIZE);
 
   for(int i=from.y; i<to.y;i++) {
-    int spr_word_idx = spr_word_idx_y;
-    int bg_word_idx = bg_word_idx_y;
+    // check for Y under- & overflow.
+    // These are easily skipped because we only blit one row at the time.
+    if (bg_word_idx_y < 0) goto continue_like_so;
+    if (bg_word_idx_y > bg_word_end) goto continue_like_so;
+
+    int spr_word_idx = spr_word_idx_y + (from.x / WORD_SIZE);
+    int bg_word_idx = bg_word_idx_y + (at.x / WORD_SIZE);
 
     int k = fromx_offset;
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
-
 
     for(int j=from.x; j<to.x;j+=WORD_SIZE) {
 
@@ -160,12 +164,6 @@ void planar_bitblt(
         mask &= ~transparency_mask;
       }
 
-      // check for Y under- & overflow.
-      // These are easily skipped because we only blit one row at the time.
-      if (bg_word_idx < 0) goto continue_like_so;
-      if (bg_word_idx > bg_word_end) goto continue_like_so;
-
-
       for(int n=0; n<sprite->depth; n++) {
         uint32_t sprite_word = sprite->planes[n][spr_word_idx];
         // check for X out of bounds (under- or overflow)
@@ -183,12 +181,12 @@ void planar_bitblt(
         }
       }
 
-continue_like_so:
       spr_word_idx++;
       bg_word_idx++;
       mask = 0;
     }
 
+continue_like_so:
     spr_word_idx_y += sprite_width_aligned / WORD_SIZE;
     bg_word_idx_y += background_width_aligned / WORD_SIZE;
   }

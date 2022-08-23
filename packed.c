@@ -139,10 +139,10 @@ void packed_bitblt(
 
   // Take 'from' offset into account
   // See planar implementation for reference
-  int fromx_offset = (from.x * pixels_per_word) % WORD_SIZE;
-  at.x -= fromx_offset / pixels_per_word;
-  from.x -= fromx_offset / pixels_per_word;
-  int mask_end = ((to.x - from.x) * pixels_per_word) < WORD_SIZE ? ((to.x - from.x) * pixels_per_word) : WORD_SIZE;
+  int fromx_offset = (from.x * sprite->depth) % WORD_SIZE;
+  at.x -= fromx_offset / sprite->depth;
+  from.x -= fromx_offset / sprite->depth;
+  int mask_end = ((to.x - from.x) * sprite->depth) < WORD_SIZE ? ((to.x - from.x) * pixels_per_word) : WORD_SIZE;
   WORD_T fromx_offset_mask = 0;
   for (int i=fromx_offset;i<mask_end;i++) {
     fromx_offset_mask |= 1 << ((WORD_SIZE-1)-i);
@@ -166,22 +166,23 @@ void packed_bitblt(
 
   // Calculate these values by progressive addition instead of repeated multiplication;
   // but since we don't start at zero, do pre-calculate the initial value;
-  int spr_word_idx_y = ((from.y *sprite_width_aligned) + from.x) / pixels_per_word;
-  int bg_word_idx_y = ((at.y * background_width_aligned) + at.x)/pixels_per_word;
-  int bg_word_end = (background_width_aligned * background->size.y) / pixels_per_word;
+  int spr_word_idx_y = from.y *(sprite_width_aligned / pixels_per_word);
+  int bg_word_idx_y = at.y * (background_width_aligned / pixels_per_word);
+  int bg_word_end = background->size.y * (background_width_aligned / pixels_per_word);
 
   for(int i = from.y; i < to.y; i++) {
-    int spr_word_idx = spr_word_idx_y;
-    int bg_word_idx = bg_word_idx_y;
+    // if y out of bounds, we have nothing to do here
+    if (bg_word_idx_y < 0) goto continue_like_so;
+    if (bg_word_idx_y >= bg_word_end) goto continue_like_so;
+
+    int spr_word_idx = spr_word_idx_y + (from.x / pixels_per_word);
+    int bg_word_idx = bg_word_idx_y + (at.x / pixels_per_word);
 
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
     int k = fromx_offset;
 
     for (int j = from.x; j < to.x; j+=pixels_per_word) {
-      // if y out of bounds, we have nothing to do here
-      if ((at.y-from.y)+i < 0) goto continue_like_so;
-      if (bg_word_idx >= bg_word_end) goto continue_like_so;
 
       WORD_T spr_word = sprite->data[spr_word_idx];
 
@@ -212,11 +213,11 @@ void packed_bitblt(
 
       mask = ~0;
 
-continue_like_so:
       spr_word_idx++;
       bg_word_idx++;
     }
 
+continue_like_so:
     spr_word_idx_y += sprite_width_aligned / pixels_per_word;
     bg_word_idx_y += background_width_aligned / pixels_per_word;
   }

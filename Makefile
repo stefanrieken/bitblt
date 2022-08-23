@@ -3,7 +3,7 @@ LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o image.o tilemap.o
 # Allows gprof profiling with GCC. En- / disable at wish.
 # Run profiled program first and then view stats with 'make stats'.
 # Probably only makes sense in combination with 'demo-none'.
-CFLAGS=-pg
+#CFLAGS=-pg
 
 all: demo-none demo-gtk spredit compose
 
