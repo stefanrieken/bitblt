@@ -5,7 +5,7 @@ LIBOBJECTS=bitmap.o draw.o font.o shared.o packed.o planar.o image.o tilemap.o
 # Probably only makes sense in combination with 'demo-none'.
 #CFLAGS=-pg
 
-all: demo-none demo-gtk spredit compose
+all: demo-none demo-gtk spredit compose blit
 
 %.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
@@ -32,5 +32,8 @@ spredit: display/display_gtk.o shared.o spredit.o libbitblt.a
 compose: display/display_gtk.o shared.o compose.o libbitblt.a
 	gcc -pthread $^ -o $@ `pkg-config --libs --cflags cairo gdk-3.0 gtk+-3.0`
 
+blit: blit.c libbitblt.a
+	gcc -pthread $^ -o $@
+
 clean:
-	rm -f *out.bmp *.a *.o display/*.o demo-gtk demo-none spredit compose
+	rm -f *out.bmp *.a *.o display/*.o demo-gtk demo-none spredit compose blit
