@@ -2,6 +2,7 @@ demo-none
 demo-gtk
 spredit
 compose
+blit
 *out.bmp
 *.out
 *.o

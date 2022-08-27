@@ -202,7 +202,7 @@ void * demo(void * args) {
   fill->color = 9;
 
   uint8_t (*palette_read)[];
-  PackedImage * tileset = read_bitmap("spritesheet.bmp", &palette_read);
+  PackedImage * tileset = read_bitmap("assets/spritesheet.bmp", &palette_read);
   for (int i=0;i<(1<<tileset->depth)*3;i++) (*palette)[i] = (*palette_read)[i];
   free(palette_read);
 
