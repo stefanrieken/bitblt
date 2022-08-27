@@ -134,7 +134,7 @@ void click_cb(coords from, coords to) {
     }
   } else if (overlay_txt != NULL) {
     if (strcmp("save", overlay_txt) == 0) {
-      background->depth=1;
+      //background->depth=1;
       PackedImage * out = new_packed_image(64,64,background->depth);
       PackedImage * bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
       packed_bitblt(out, bg, (coords){16,0}, bg->size, (coords) {0,0}, -1); // N.b. will cut off size to spreadsheet size!
@@ -205,44 +205,6 @@ void hover_cb(coords where) {
 }
 
 void * mainloop(void * args) {
-  // DisplayData * dd = (DisplayData *) args;
-  background = new_planar_image(80, 64, 4);
-
-  // populate the palette, as such:
-  for (int i=0; i<16; i++) {
-    int x = (i % 2) * 8;
-    int y = (i / 2) * 5;
-    for (int plane=0; plane<4; plane++) {
-      draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+7,y+4}, true, (i >> plane) & 0b1);
-    }
-  }
-  // toolbox comes below palette, which is 5*8=40 high
-  planar_bitblt_full(background, make_img(toolbox, 24), (coords){0,40}, -1);
-  // checkerboard the toolbox
-  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {15,47}, true, 1);
-  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 7,55}, true, 1);
-  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {15,63}, true, 1);
-
-  // dot-mark edit window
-  int step =8;
-  for (int i=0;i+(step-1)<64;i+=step) {
-    for (int j=0;j+(step-1)<64;j+=step) {
-      draw_line(background->planes[0], background->size, (coords) {16+j+(step-1),i+(step-1)}, (coords) {16+j+(step-1),i+(step-1)}, 1);
-    }
-  }
-  // or no wait, load in data
-  uint8_t (*palette_read)[];
-  PackedImage * spritesheet = read_bitmap("in.bmp", &palette_read);
-  if (spritesheet != NULL) {
-    PlanarImage * unpacked = unpack(spritesheet);
-    planar_bitblt_all(background, unpacked, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
-    free(spritesheet->data);
-    free(spritesheet);
-
-    for (int i=0;i<(1<<spritesheet->depth)*3;i++) (*dd->palette)[i] = (*palette_read)[i];
-    free(palette_read);
-  }
-
   // Copy background to display.
   // Even though drawing is done directly on the background,
   // we do want to add & remove overlays on it at will.
@@ -269,7 +231,45 @@ int main (int argc, char ** argv) {
   color = 0;
 
   configure_draw(1); // 1 bpp planes
+
   make_keypad();
+
+  background = new_planar_image(80,64,4);
+  // populate the palette, as such:
+  for (int i=0; i<16; i++) {
+    int x = (i % 2) * 8;
+    int y = (i / 2) * 5;
+    for (int plane=0; plane<4; plane++) {
+      draw_rect(background->planes[plane], background->size, (coords) {x,y}, (coords) {x+7,y+4}, true, (i >> plane) & 0b1);
+    }
+  }
+  // toolbox comes below palette, which is 5*8=40 high
+  planar_bitblt_full(background, make_img(toolbox, 24), (coords){0,40}, -1);
+  // checkerboard the toolbox
+  draw_rect(background->planes[3], background->size, (coords) {8,40}, (coords) {15,47}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {0,48}, (coords) { 7,55}, true, 1);
+  draw_rect(background->planes[3], background->size, (coords) {8,56}, (coords) {15,63}, true, 1);
+
+  // dot-mark edit window
+  int step =8;
+  for (int i=0;i+(step-1)<64;i+=step) {
+    for (int j=0;j+(step-1)<64;j+=step) {
+      draw_line(background->planes[0], background->size, (coords) {16+j+(step-1),i+(step-1)}, (coords) {16+j+(step-1),i+(step-1)}, 1);
+    }
+  }
+  // or no wait, load in data
+  char * filename = argc > 1 ? argv[1] : "in.bmp";
+  uint8_t (*palette_read)[];
+  PackedImage * spritesheet = read_bitmap(filename, &palette_read);
+  if (spritesheet != NULL) {
+    PlanarImage * unpacked = unpack(spritesheet);
+    planar_bitblt_all(background, unpacked, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
+    free(spritesheet->data);
+    free(spritesheet);
+
+    for (int i=0;i<(1<<spritesheet->depth)*3;i++) (*dd->palette)[i] = (*palette_read)[i];
+    free(palette_read);
+  }
 
   display_init(argc, argv, dd, delegate_callbacks(draw_cb, click_cb, hover_cb));
 
