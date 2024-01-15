@@ -27,6 +27,7 @@ OR (background.layer2, sprite.layer2);
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "planar.h"
 
@@ -88,7 +89,7 @@ uint32_t * pack(PlanarImage * image) {
   return result;
 }
 
-void planar_bitblt(
+bool planar_bitblt(
    PlanarImage * background,
    PlanarImage * sprite,
    coords from,
@@ -98,6 +99,8 @@ void planar_bitblt(
    int transparent
   )
 {
+  bool collision = false;
+
   // This sanity check is a bit baby'ing,
   // but it might just make life easier somewhere
   if (to.x > sprite->size.x) to.x = sprite->size.x;
@@ -112,6 +115,7 @@ void planar_bitblt(
   // Then mask should be 000000011111111...
   // either for the full word or until to.x, whichever comes first
   int mask_end = (to.x - from.x) < WORD_SIZE ? to.x - from.x : WORD_SIZE;
+  if (background->size.x - at.x < mask_end) mask_end = background->size.x - at.x;
   WORD_T fromx_offset_mask = 0;
   for (int i=fromx_offset;i<mask_end;i++) {
     fromx_offset_mask |= 1 << ((WORD_SIZE-1)-i);
@@ -123,6 +127,7 @@ void planar_bitblt(
   at.x = at.x - offset;
 
   uint32_t background_width_aligned = image_aligned_width(background->size.x, 1);
+  uint32_t background_width_words = background_width_aligned / WORD_SIZE;
   uint32_t sprite_width_aligned = image_aligned_width(sprite->size.x, 1);
 
   // Calculate this value by progressive addition instead of repeated multiplication;
@@ -135,15 +140,19 @@ void planar_bitblt(
     // check for Y under- & overflow.
     // These are easily skipped because we only blit one row at the time.
     if (bg_word_idx_y < 0) goto continue_like_so;
-    if (bg_word_idx_y > bg_word_end) goto continue_like_so;
+    if (bg_word_idx_y >= bg_word_end) goto continue_like_so;
 
     int spr_word_idx = spr_word_idx_y + (from.x / WORD_SIZE);
+
     int bg_word_idx = bg_word_idx_y + (at.x / WORD_SIZE);
 
     // start at x=0 with 'from.x' mask; clean at end of for loop
     WORD_T mask = fromx_offset_mask;
 
     for(int j=from.x; j<to.x;j+=WORD_SIZE) {
+      // TODO the fact that we reduce j to word units first thing,
+      // suggests taht we may want to iterate in word units (as we do with packed)
+      int bg_word_idx_x = ((j-from.x)+at.x) / WORD_SIZE;
 
       // cut off end alignment by removing relevant 1's from mask
       if (to.x -j < WORD_SIZE) {
@@ -166,16 +175,18 @@ void planar_bitblt(
         uint32_t sprite_word = sprite->planes[n][spr_word_idx];
         // check for X out of bounds (under- or overflow)
 
-        if((j-from.x)+at.x>=0 && (j-from.x)+at.x-offset<background->size.x) {
-          background->planes[from_plane+n][bg_word_idx] &= ~(mask >> offset); // clear required parts
+        if(bg_word_idx_x >= 0 && bg_word_idx_x < background_width_words) {
+         uint32_t masked = background->planes[from_plane+n][bg_word_idx] & ~(mask >> offset);
+         collision |= background->planes[from_plane+n][bg_word_idx] != masked;
           // TODO also subject sprite to mask in case of transparent
-          background->planes[from_plane+n][bg_word_idx] |= (sprite_word&mask) >> offset; // add sprite
+          background->planes[from_plane+n][bg_word_idx] = masked | ((sprite_word&mask) >> offset); // add sprite
         }
         // overflow any offset into next, unless X+1 out of bounds
-        if (offset != 0 && (j-from.x)+at.x+WORD_SIZE>=0 && (j-from.x)+at.x+WORD_SIZE-offset<background->size.x) {
-          background->planes[from_plane+n][bg_word_idx+1] &= ~(mask << (WORD_SIZE-offset)); // clear required parts
+        if(offset != 0 && bg_word_idx_x+1 >= 0 && bg_word_idx_x+1 < background_width_words) {
+          uint32_t masked = background->planes[from_plane+n][bg_word_idx+1] & ~(mask << (WORD_SIZE-offset)); // clear required parts
+          collision |= background->planes[from_plane+n][bg_word_idx+1] != masked; // clear required parts
           // TODO also subject sprite to mask in case of transparent
-          background->planes[from_plane+n][bg_word_idx+1] |= (sprite_word&mask) << (WORD_SIZE - offset); // add sprite
+          background->planes[from_plane+n][bg_word_idx+1] = masked | ((sprite_word&mask) << (WORD_SIZE - offset)); // add sprite
         }
       }
 
@@ -188,17 +199,19 @@ continue_like_so:
     spr_word_idx_y += sprite_width_aligned / WORD_SIZE;
     bg_word_idx_y += background_width_aligned / WORD_SIZE;
   }
+
+  return collision;
 }
 
-void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent) {
-  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, transparent);
+bool planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent) {
+  return planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, 0, transparent);
 }
 
-void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane) {
-  planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
+bool planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane) {
+  return planar_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, from_plane, -1);
 }
 
-void planar_bitblt_all(
+bool planar_bitblt_all(
    PlanarImage * background,
    PlanarImage * sprite,
    coords from,
@@ -207,5 +220,5 @@ void planar_bitblt_all(
    int transparent
   )
 {
-  planar_bitblt(background, sprite, from, to, at, 0, transparent);
+  return planar_bitblt(background, sprite, from, to, at, 0, transparent);
 }

@@ -185,12 +185,16 @@ void * demo(void * args) {
   int i = 0; int j=0;
   int increment_i = 1; int increment_j = 1;
 
+  bool collision = false;
+  bool previous = false;
+
   for (int counter = 0; counter < 780; counter++) {
       // Start with clean background; opaque
       packed_bitblt_full(packed_disp, packed_bg, (coords) {0,0}, -1);
       // Add kitty's head at coords; translucent
       int translucent_color = (counter % 68 > 34) ? 3 : 0; // switch translucent color half of the time
-      packed_bitblt(packed_disp, packed_cat, (coords) {0,0}, (coords){16,16 + ((i>>3)%8)}, (coords) {i, j}, translucent_color);
+      collision = packed_bitblt(packed_disp, packed_cat, (coords) {0,0}, (coords){16,16 + ((i>>3)%8)}, (coords) {i, j}, translucent_color);
+      if (collision != previous) { printf("Collision: %d\n", collision); previous = collision; }
 
       i += increment_i;
       j += increment_j;
@@ -237,6 +241,9 @@ void * demo(void * args) {
   write_bitmap("demo_text_out.bmp", palette, pack(background), background->size.x, background->size.y, background->depth);
 
   // Mainloop 2
+  collision = false;
+  previous = false;
+
   i = 0; j=0;
   increment_i = 1; increment_j = 1;
 
@@ -248,7 +255,8 @@ void * demo(void * args) {
       // A practical work-around is to copy the clip area into a clip-sized image first.
       // So e.g. first copy out a 16- or 8-bit wide sprite from a sprite map before using it.
       int translucent_color = (counter % 68 > 34) ? 3 : 0; // switch translucent color half of the time
-      planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16 + ((i>>3)%8)}, (coords) {i,j}, 0, translucent_color);
+      collision = planar_bitblt(display, color_cat, (coords) {0,0}, (coords) {16,16 + ((i>>3)%8)}, (coords) {i,j}, 0, translucent_color);
+      if (collision != previous) { printf("Collision: %d\n", collision); previous = collision; }
 
       i += increment_i;
       j += increment_j;

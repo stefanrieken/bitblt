@@ -126,7 +126,7 @@ static inline uint32_t make_mask(uint32_t data, uint32_t mask_pattern, uint8_t b
 /**
  * Project 2-bit coloured 'sprite' onto 'background' assuming colour '00' is transparent.
  */
-void packed_bitblt(
+bool packed_bitblt(
     PackedImage * background,
     PackedImage * sprite,
     coords from,
@@ -135,6 +135,8 @@ void packed_bitblt(
     int transparent
   )
 {
+  bool collision = false;
+
   uint8_t pixels_per_word = WORD_SIZE / background->depth;
 
   // Take 'from' offset into account
@@ -202,12 +204,14 @@ void packed_bitblt(
       // Make up for any offset by shifting into two consecutive words; word 0 first
       if ((at.x-from.x)+j >= 0 && (at.x-from.x)+j < background_width_aligned) {
         uint32_t * bg_word0 = &background->data[bg_word_idx];
+        collision |= (*bg_word0 & (mask >> offset)) != 0;
         *bg_word0 = (*bg_word0 & ~(mask >> offset)) | (spr_word >> offset);
       }
 
       // blt any spillover into the next word
       if (offset != 0 && (at.x-from.x)+j+pixels_per_word >= 0 && (at.x-from.x)+j+pixels_per_word < background_width_aligned) {
         uint32_t * bg_word1 = &background->data[bg_word_idx+1];
+        collision |= (*bg_word1 & (mask << (WORD_SIZE-offset))) != 0;
         *bg_word1 = (*bg_word1 & ~(mask << (WORD_SIZE-offset))) | spr_word << (WORD_SIZE-offset);
       }
 
@@ -221,8 +225,10 @@ continue_like_so:
     spr_word_idx_y += sprite_width_aligned / pixels_per_word;
     bg_word_idx_y += background_width_aligned / pixels_per_word;
   }
+
+  return collision;
 }
 
-void packed_bitblt_full(PackedImage * background, PackedImage * sprite, coords at, int transparent) {
-  packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, transparent);
+bool packed_bitblt_full(PackedImage * background, PackedImage * sprite, coords at, int transparent) {
+  return packed_bitblt(background, sprite, (coords) {0,0}, sprite->size, at, transparent);
 }

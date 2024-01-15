@@ -27,8 +27,9 @@ uint32_t * pack(PlanarImage * image);
  * Coords 'from' and 'to' define the top left and bottom right corners of the sprite to copy.
  * Notice that this may only work well on word alignments. If you need a more precise cut-out,
  * you might want to try bitblt'ing to a smaller image first.
+ * @return whether non-transparent bits from 'sprite' overlap any from 'background' (= collision)
  */
-void planar_bitblt(
+bool planar_bitblt(
    PlanarImage * background,
    PlanarImage * sprite,
    coords from,
@@ -39,13 +40,13 @@ void planar_bitblt(
   );
 
 /** Convenience function that uses defaults for from, to (whole sprite) and from_plane (0). */
-void planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent);
+bool planar_bitblt_full(PlanarImage * background, PlanarImage * sprite, coords at, int transparent);
 
 /** As above, but for copying a single plane. */
-void planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane);
+bool planar_bitblt_plane(PlanarImage * background, PlanarImage * sprite, coords at, int from_plane);
 
 /** Copy all planes. Fits generic BitbltFunc signature. */
-void planar_bitblt_all(
+bool planar_bitblt_all(
    PlanarImage * background,
    PlanarImage * sprite,
    coords from,

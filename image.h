@@ -2,6 +2,7 @@
 #define BITBLT_IMAGE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define WORD_SIZE 32
 #define WORD_T uint32_t
@@ -45,6 +46,6 @@ typedef struct Image {
  */
 uint32_t image_aligned_width(uint32_t width, int bpp);
 
-typedef void BitbltFunc(Image * background, Image * sprite, coords from, coords to, coords at, int transparent);
+typedef bool BitbltFunc(Image * background, Image * sprite, coords from, coords to, coords at, int transparent);
 
 #endif /* BITBLT_IMAGE_H */
