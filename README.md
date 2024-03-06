@@ -106,3 +106,5 @@ user interface will typically track a single square only, enlarging it when nece
 with multiple sprites would update much quicker if it tracked all the sprites individually.
 Experiments on this matter are found in 'compose.c'.
 
+## Mac install
+Install homebrew, and then brew install gtk+ pkg-config

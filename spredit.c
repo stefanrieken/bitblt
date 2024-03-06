@@ -51,6 +51,9 @@ DisplayData * dd;
 PlanarImage * background;
 
 char * overlay_txt;
+
+int output_depth=4;
+
 void show_overlay(char * txt) {
   PlanarImage * text = render_text(txt, 1, false, false);
   PlanarImage * no_text = new_planar_image(text->size.x , text->size.y, 1);
@@ -134,7 +137,7 @@ void click_cb(coords from, coords to) {
     }
   } else if (overlay_txt != NULL) {
     if (strcmp("save", overlay_txt) == 0) {
-      //background->depth=1;
+      background->depth=output_depth;
       PackedImage * out = new_packed_image(64,64,background->depth);
       PackedImage * bg = to_packed_image(pack(background), background->size.x, background->size.y, background->depth);
       packed_bitblt(out, bg, (coords){16,0}, bg->size, (coords) {0,0}, -1); // N.b. will cut off size to spreadsheet size!
@@ -214,6 +217,11 @@ void * mainloop(void * args) {
 }
 
 int main (int argc, char ** argv) {
+  if (argc == 3) {
+      output_depth = atoi(argv[2]);
+      printf("Output depth set at %dbpp.\n", output_depth);
+  }
+
   dd = malloc(sizeof(DisplayData));
 
   // using 80x64 for planned device compatibility (with 160x128; pygamer / meowbit)
@@ -261,7 +269,13 @@ int main (int argc, char ** argv) {
   char * filename = argc > 1 ? argv[1] : "in.bmp";
   uint8_t (*palette_read)[];
   PackedImage * spritesheet = read_bitmap(filename, &palette_read);
+
   if (spritesheet != NULL) {
+    if(argc != 3) {
+      output_depth=spritesheet->depth;
+      printf("Output depth defaulting to %dbpp (= depth of infile).\n", output_depth);
+    }
+
     PlanarImage * unpacked = unpack(spritesheet);
     planar_bitblt_all(background, unpacked, (coords){0,0}, spritesheet->size, (coords) {16,0}, -1);
     free(spritesheet->data);

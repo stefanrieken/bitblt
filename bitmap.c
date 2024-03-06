@@ -26,7 +26,6 @@ static void write_16bit(FILE * file, uint32_t data) {
 void write_bitmap(const char * filename, uint8_t (* palette)[], uint32_t * packed_img, int width, int height, int bpp) {
 
   uint32_t packed_width_aligned = image_aligned_width(width, bpp);
-
   uint32_t data_length_words = (packed_width_aligned * height * bpp) / 32;
   uint32_t data_length_bytes = (packed_width_aligned * height * bpp) / 8;
 
@@ -36,7 +35,7 @@ void write_bitmap(const char * filename, uint8_t (* palette)[], uint32_t * packe
   FILE * file = fopen(filename, "wb");
   // main header
   fputc('B', file); fputc('M', file);
-  write_32bit(file, 14 + 40 + (num_colors * 4) + (data_length_words*4)); // file size: h1 + h2 + size
+  write_32bit(file, 14 + 40 + (num_colors * 4) + (data_length_bytes)); // file size: h1 + h2 + size
   write_16bit(file, 0); write_16bit(file, 0);
   write_32bit(file, 14 + 40 + (num_colors * 4)); // start of pixel array
   // bitmap info header. Still understood by most readers
@@ -64,7 +63,7 @@ void write_bitmap(const char * filename, uint8_t (* palette)[], uint32_t * packe
     fputc(0, file);
   }
   // finally, data
-  // NOTE BPM thinks upside down. Can't just invert this loop.
+  // NOTE BMP thinks upside down. Can't just invert this loop.
   // So instead we have set image height negative above!
   for (int i=0; i<data_length_words; i++) {
     write_32bit_data(file, packed_img[i]);

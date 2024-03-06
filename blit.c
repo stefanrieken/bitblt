@@ -35,7 +35,7 @@ uint8_t (*palette)[] = &(uint8_t[]) {
 
 
 char * print_usage(char * name) {
-  printf("Usage: %s (image.bmp | new <x> <y> <depth>) image.bmp <from_x> <from_y> <to_y> <to_y> <transparent> out.bmp\n", name);
+  printf("Usage: %s (image.bmp | new <x> <y> <depth>) image.bmp <from_x> <from_y> <to_y> <to_y> <at_x> <at_y> <transparent> out.bmp\n", name);
   exit(-1);
 }
 
